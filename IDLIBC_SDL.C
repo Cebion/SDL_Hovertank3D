@@ -2376,7 +2376,6 @@ void UpdateSPKR()
 	_sound(freq);
 }
 
-float SPKangle;
 float SPKtime; // time in seconds
 
 static void MyAudioCallback(void *userdata, Uint8 *stream, int len)
@@ -2431,16 +2430,11 @@ static void MyAudioCallback(void *userdata, Uint8 *stream, int len)
 		}
 		if (SPKfreq)
 		{
-			for (int i = 0; i < SAMPLES; i++)
+			for (int i = 0; i < SAMPLES/4; i++)
 			{
-				int sample = (int)(sinf(SPKangle)*32767);
-				if (sample > 0) sample = 32767;
-				else sample = -32767;
-				sample = sample / 8 + (int)(*stream16);
-				if (sample > 32767) sample = 32767;
-				if (sample < -32767) sample = -32767;
+				int sample = (1&(int)(SPKtime*SPKfreq*2))*65535 - 32768;
+				SPKtime += SAMPLESTEP;
 				*stream16 += sample;
-				SPKangle += SAMPLESTEP*SPKfreq*2.f*3.14156f;
 				stream16++;
 			}
 		}

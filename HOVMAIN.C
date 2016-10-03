@@ -1520,6 +1520,7 @@ int main(int argc, char **argv)
 
 	if (soundblaster)
 		soundblaster = jmDetectSoundBlaster(-1);
+	soundblaster = 0;
 
 #if 0
 	if (stricmp(_argv[1], "NOBLASTER") == 0)
@@ -1550,11 +1551,6 @@ int main(int argc, char **argv)
   BloadinMM ("SOUNDS."EXTENSION,&soundseg);
   assert(sizeof(spksndtype) == 16);
   spksndtype * sounds = (spksndtype*)soundseg;
-
-  for (int i = 0; i < 20; i++)
-  {
-	  SDL_Log(sounds[i+1].name);
-  }
 
 //  harderr(ErrorHandler);        // critical error handler
 
