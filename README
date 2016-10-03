@@ -1,9 +1,9 @@
 Hovertank 3-D
 =============
 
-This repository contains the source code for Hovertank 3-D. The source code is
-designed for Borland C++ 2.0, but compiled fine with Borland C++ 3.1 at the
-time of this release.
+This repostiory contains a source code port of Hovertank 3-D to SDL.
+Currently builds under windows visual studio but work will be done to port
+to other platforms.
 
 It is released under the GNU GPLv2. Please see COPYING for license details.
 
