@@ -68,7 +68,7 @@ void Reverse (void);
 void AfterBurn (void);
 void PlayerThink (void);
 
-void SpawnShot (fixed gx, fixed gy, int angle, classtype class);
+void SpawnShot (fixed gx, fixed gy, int angle, classtype _class);
 void ExplodeShot(void);
 int ClipPointMove (void);
 void ShotThink (void);
@@ -123,7 +123,7 @@ void SpawnPlayer (fixed gx, fixed gy)
   objlist[0].y = gy;
   objlist[0].angle = 0;
   objlist[0].think = PlayerThink;
-  objlist[0].class = playerobj;
+  objlist[0]._class = playerobj;
   objlist[0].size = MINDIST;
   objlist[0].radarcolor = 15;
   objlist[0].hitpoints = 3;
@@ -148,7 +148,7 @@ void SpawnPlayer (fixed gx, fixed gy)
 void GetRefugee (objtype *hit)
 {
   PlaySound (SAVEHOSTAGESND);
-  hit->class = nothing;
+  hit->_class = nothing;
   if (hit->radarx)
     XPlot (hit->radarx,hit->radary,hit->radarcolor);
   DrawPic (2*savedcount+1,6,SAVEDGUYPIC);
@@ -203,7 +203,7 @@ void CheckFire (void)
     {
       DrawPic (14,40,REARMINGPIC);
       guncount = 0;
-      SpawnShot (obon.x,obon.y,obon.angle,pshotobj+(gunstate-charging));
+      SpawnShot (obon.x,obon.y,obon.angle,(classtype)(pshotobj+(gunstate-charging)));
       gunstate = rearming;
       PlaySound (FIRESND);
     }
@@ -256,7 +256,7 @@ void HealPlayer (void)
 void Thrust (void)
 {
   xmove = FixedByFrac(PLAYERTHRUST*tics,costable[obon.angle]);
-  ymove = FixedByFrac(PLAYERTHRUST*tics,sintable[obon.angle])^SIGNBIT;
+  ymove = -FixedByFrac(PLAYERTHRUST*tics,sintable[obon.angle]);
   ClipMove();
 }
 
@@ -271,7 +271,7 @@ void Thrust (void)
 
 void Reverse (void)
 {
-  xmove = FixedByFrac(PLAYERREVERSE*tics,costable[obon.angle])^SIGNBIT;
+  xmove = -FixedByFrac(PLAYERREVERSE*tics,costable[obon.angle]);
   ymove = FixedByFrac(PLAYERREVERSE*tics,sintable[obon.angle]);
   ClipMove();
 }
@@ -288,7 +288,7 @@ void Reverse (void)
 void AfterBurn (void)
 {
   xmove = FixedByFrac(PLAYERAFTERBURN*tics,costable[obon.angle]);
-  ymove = FixedByFrac(PLAYERAFTERBURN*tics,sintable[obon.angle])^SIGNBIT;
+  ymove = -FixedByFrac(PLAYERAFTERBURN*tics,sintable[obon.angle]);
   ClipMove();
   if (!SoundPlaying())
     PlaySound(AFTERBURNSND);
@@ -296,7 +296,7 @@ void AfterBurn (void)
 
 void BeforeBurn (void)
 {
-  xmove = FixedByFrac(PLAYERAFTERBURN*tics,costable[obon.angle]^SIGNBIT);
+  xmove = -FixedByFrac(PLAYERAFTERBURN*tics,costable[obon.angle]);
   ymove = FixedByFrac(PLAYERAFTERBURN*tics,sintable[obon.angle]);
   ClipMove();
   if (!SoundPlaying())
@@ -359,13 +359,13 @@ void PlayerThink (void)
 
   for (check = &objlist[1];check<=lastobj;check++)
     if
-    (check->class
+    (check->_class
     && check->xl <= obon.xh
     && check->xh >= obon.xl
     && check->yl <= obon.yh
     && check->yh >= obon.yl)
     {
-      switch (check->class)
+      switch (check->_class)
       {
 	case refugeeobj:
 	  GetRefugee (check);
@@ -375,7 +375,7 @@ void PlayerThink (void)
 	  objlist[0] = obon;
 	  HealPlayer ();
 	  obon = objlist[0];
-	  check->class = nothing;
+	  check->_class = nothing;
 	  if (check->radarx)
 	    XPlot (check->radarx,check->radary,check->radarcolor);
 	  break;
@@ -407,28 +407,28 @@ void PlayerThink (void)
 ====================
 */
 
-void SpawnShot (fixed gx, fixed gy, int angle, classtype class)
+void SpawnShot (fixed gx, fixed gy, int angle, classtype _class)
 {
   FindFreeObj();
-  new->x = gx;
-  new->y = gy;
-  new->angle = angle;
-  new->think = ShotThink;
-  new->class = class;
-  new->size = TILEGLOBAL/8;
-  switch (class)
+  _new->x = gx;
+  _new->y = gy;
+  _new->angle = angle;
+  _new->think = ShotThink;
+  _new->_class = _class;
+  _new->size = TILEGLOBAL/8;
+  switch (_class)
   {
     case pshotobj:
-      new->shapenum = PSHOTPIC;
-      new->speed = SHOTSPEED;
+      _new->shapenum = PSHOTPIC;
+      _new->speed = SHOTSPEED;
       break;
     case pbigshotobj:
-      new->shapenum = BIGSHOTPIC;
-      new->speed = SHOTSPEED;
+      _new->shapenum = BIGSHOTPIC;
+      _new->speed = SHOTSPEED;
       break;
     case mshotobj:
-      new->shapenum = MSHOTPIC;
-      new->speed = MSHOTSPEED;
+      _new->shapenum = MSHOTPIC;
+      _new->speed = MSHOTSPEED;
       break;
   }
   CalcBoundsNew();
@@ -446,7 +446,7 @@ void SpawnShot (fixed gx, fixed gy, int angle, classtype class)
 void ExplodeShot(void)
 {
   PlaySound (SHOOTWALLSND);
-  obon.class = inertobj;
+  obon._class = inertobj;
   obon.shapenum = obon.temp1 = SHOTDIE1PIC;
   obon.think = ExplodeThink;
   obon.stage = 0;
@@ -467,15 +467,15 @@ void ExplodeShot(void)
 int ClipPointMove (void)
 {
   int xt,yt;
-  long xclipdist,yclipdist,intersect,basex,basey;
-  unsigned inside,total;
+  fixed xclipdist,yclipdist,intersect,basex,basey;
+  fixed inside,total;
 
   xmove = FixedByFrac(obon.speed*tics,costable[obon.angle]);
   if (xmove<0)
-    xmove=-(xmove^SIGNBIT);
-  ymove = FixedByFrac(obon.speed*tics,sintable[obon.angle])^SIGNBIT;
+    xmove=-(fixed)(-xmove);
+  ymove = -FixedByFrac(obon.speed*tics,sintable[obon.angle]);
   if (ymove<0)
-    ymove=-(ymove^SIGNBIT);
+    ymove=-(fixed)(-ymove);
 
   obon.x += xmove;
   obon.y += ymove;
@@ -546,7 +546,6 @@ int ClipPointMove (void)
   return 1;
 }
 
-
 /*
 ===================
 =
@@ -573,53 +572,53 @@ void ShotThink (void)
 
     for (check = &objlist[0];check<=lastobj;check++)
       if
-      (check->class
+      (check->_class
       && check->xl <= obon.xh
       && check->xh >= obon.xl
       && check->yl <= obon.yh
       && check->yh >= obon.yl)
       {
-	switch (check->class)
+	switch (check->_class)
 	{
 	  case playerobj:
-	    if (obon.class == mshotobj)
+	    if (obon._class == mshotobj)
 	    {
 	      DamagePlayer ();
-	      obon.class = nothing;
+	      obon._class = nothing;
 	      return;
 	    }
 	    break;
 
 	  case refugeeobj:
 	    KillRefugee (check);
-	    if (obon.class == pbigshotobj)
+	    if (obon._class == pbigshotobj)
 	      break;
-	    obon.class = nothing;
+	    obon._class = nothing;
 	    return;
 
 	  case mutantobj:
 	    KillMutant (check);
-	    if (obon.class == pbigshotobj)
+	    if (obon._class == pbigshotobj)
 	      break;
-	    obon.class = nothing;
+	    obon._class = nothing;
 	    return;
 
 	  case tankobj:
-	    if (obon.class != mshotobj)
+	    if (obon._class != mshotobj)
 	    {
 	      KillTank (check);
-	      if (obon.class == pbigshotobj)
+	      if (obon._class == pbigshotobj)
 		break;
-	      obon.class = nothing;
+	      obon._class = nothing;
 	      return;
 	    }
 	    break;
 
 	  case droneobj:
 	    KillDrone (check);
-	    if (obon.class == pbigshotobj)
+	    if (obon._class == pbigshotobj)
 	      break;
-	    obon.class = nothing;
+	    obon._class = nothing;
 	    return;
 	}
       }
@@ -663,7 +662,7 @@ void ExplodeThink (void)
     if (++obon.stage == 5)
     {
       if (obon.temp1 == SHOTDIE1PIC)	// shopt explosions go away
-	obon.class = nothing;
+	obon._class = nothing;
       else
 	obon.think = InertThink;
       return;
@@ -694,14 +693,14 @@ void ExplodeThink (void)
 void SpawnWarp (fixed gx, fixed gy)
 {
   FindFreeObj();
-  new->x = gx;
-  new->y = gy;
-  new->angle = 0;
-  new->think = WarpThink;
-  new->class = warpobj;
-  new->size = MINDIST;
-  new->radarcolor = 14;
-  new->shapenum = WARP1PIC;
+  _new->x = gx;
+  _new->y = gy;
+  _new->angle = 0;
+  _new->think = WarpThink;
+  _new->_class = warpobj;
+  _new->size = MINDIST;
+  _new->radarcolor = 14;
+  _new->shapenum = WARP1PIC;
   CalcBoundsNew();
 }
 
@@ -753,25 +752,25 @@ void SpawnRefugee (fixed gx, fixed gy,int sex)
   numrefugees++;
 
   FindFreeObj();
-  new->x = gx;
-  new->y = gy;
-  new->angle = 0;
-  new->think = RefugeeThink;
-  new->class = refugeeobj;
-  new->size = TILEGLOBAL/3;
-  new->radarcolor = 15;
+  _new->x = gx;
+  _new->y = gy;
+  _new->angle = 0;
+  _new->think = RefugeeThink;
+  _new->_class = refugeeobj;
+  _new->size = TILEGLOBAL/3;
+  _new->radarcolor = 15;
   if (sex)
   {
-    new->shapenum = MAN1PIC;
-    new->temp1 = MAN1PIC;
+    _new->shapenum = MAN1PIC;
+    _new->temp1 = MAN1PIC;
   }
   else
   {
-    new->shapenum = WOMAN1PIC;
-    new->temp1 = WOMAN1PIC;
+    _new->shapenum = WOMAN1PIC;
+    _new->temp1 = WOMAN1PIC;
   }
-  new->temp2 = 0;
-  new->ticcount = Rnd(REFUGEEANM*3);
+  _new->temp2 = 0;
+  _new->ticcount = Rnd(REFUGEEANM*3);
   CalcBoundsNew();
 }
 
@@ -799,7 +798,7 @@ void KillRefugee (objtype *hit)
   }
 
   hit->radarcolor = 0;
-  hit->class = inertobj;
+  hit->_class = inertobj;
   if (hit->temp1 == MAN1PIC)
     hit->shapenum = hit->temp1 = MANDIE1PIC;
   else
@@ -856,17 +855,17 @@ void RefugeeThink (void)
 void SpawnDrone (fixed gx, fixed gy)
 {
   FindFreeObj();
-  new->x = gx;
-  new->y = gy;
-  new->angle = 0;
-  new->think = DroneThink;
-  new->class = droneobj;
-  new->size = MINDIST;
-  new->radarcolor = 10;
-  new->hitpoints = 2;
-  new->shapenum = DRONE1PIC;
-  new->ticcount = Rnd(DRONEANM*3);
-  new->temp1 = (int)new;	// will hunt first think
+  _new->x = gx;
+  _new->y = gy;
+  _new->angle = 0;
+  _new->think = DroneThink;
+  _new->_class = droneobj;
+  _new->size = MINDIST;
+  _new->radarcolor = 10;
+  _new->hitpoints = 2;
+  _new->shapenum = DRONE1PIC;
+  _new->ticcount = Rnd(DRONEANM*3);
+  _new->temp1 = (int)_new;	// will hunt first think
   CalcBoundsNew();
 }
 
@@ -886,7 +885,7 @@ void KillDrone (objtype *hit)
     XPlot (hit->radarx,hit->radary,hit->radarcolor);
 
   hit->radarcolor = 0;
-  hit->class = inertobj;
+  hit->_class = inertobj;
   hit->shapenum = hit->temp1 = DRONEDIE1PIC;
   hit->think = ExplodeThink;
   hit->stage = hit->ticcount = 0;
@@ -907,7 +906,7 @@ void DroneLockOn (void)
   objtype *check;
 
   for (check=&objlist[2];check<lastobj;check++)
-    if (check->class == refugeeobj && !check->temp2)
+    if (check->_class == refugeeobj && !check->temp2)
     {
       check->temp2++;
       obon.temp1 = (int)check;
@@ -927,8 +926,8 @@ void DroneLockOn (void)
 
 void DroneThink (void)
 {
-  if ( ((objtype *)obon.temp1)->class != refugeeobj &&
-       ((objtype *)obon.temp1)->class != playerobj)
+  if ( ((objtype *)obon.temp1)->_class != refugeeobj &&
+       ((objtype *)obon.temp1)->_class != playerobj)
     DroneLockOn ();		// target died
 
   obon.ticcount+=tics;
@@ -948,13 +947,13 @@ void DroneThink (void)
 
   for (check = &objlist[0];check<=lastobj;check++)
     if
-    (check->class
+    (check->_class
     && check->xl <= obon.xh
     && check->xh >= obon.xl
     && check->yl <= obon.yh
     && check->yh >= obon.yl)
     {
-      switch (check->class)
+      switch (check->_class)
       {
 	case playerobj:		// kill player and blow up
 	  DamagePlayer ();
@@ -963,7 +962,7 @@ void DroneThink (void)
 	    XPlot (obon.radarx,obon.radary,obon.radarcolor);
 
 	  obon.radarcolor = 0;
-	  obon.class = inertobj;
+	  obon._class = inertobj;
 	  obon.shapenum = obon.temp1 = DRONEDIE1PIC;
 	  obon.think = ExplodeThink;
 	  obon.stage = obon.ticcount = 0;
@@ -975,7 +974,6 @@ void DroneThink (void)
       }
     }
 }
-
 
 /*
 =============================================================================
@@ -997,15 +995,15 @@ void DroneThink (void)
 void SpawnTank (fixed gx, fixed gy)
 {
   FindFreeObj();
-  new->x = gx;
-  new->y = gy;
-  new->angle = 0;
-  new->think = TankThink;
-  new->class = tankobj;
-  new->size = MINDIST;
-  new->shapenum = TANK1PIC;
-  new->radarcolor = 13;
-  new->hitpoints = 3;
+  _new->x = gx;
+  _new->y = gy;
+  _new->angle = 0;
+  _new->think = TankThink;
+  _new->_class = tankobj;
+  _new->size = MINDIST;
+  _new->shapenum = TANK1PIC;
+  _new->radarcolor = 13;
+  _new->hitpoints = 3;
   CalcBoundsNew();
 }
 
@@ -1025,7 +1023,7 @@ void KillTank (objtype *hit)
     XPlot (hit->radarx,hit->radary,hit->radarcolor);
 
   hit->radarcolor = 0;
-  hit->class = inertobj;
+  hit->_class = inertobj;
   hit->shapenum = hit->temp1 = TANKDIE1PIC;
   hit->think = ExplodeThink;
   hit->stage = hit->ticcount = 0;
@@ -1150,7 +1148,7 @@ cantshoot:
 
   if (RndT()>128) 	/*randomly determine direction of search*/
   {
-    for (tdir=north;tdir<=west;tdir+=2)
+    for (tdir=north;tdir<=west;tdir=(dirtype)(tdir+2))
       if (tdir!=turnaround)
       {
 	obon.dir=tdir;
@@ -1160,7 +1158,7 @@ cantshoot:
   }
   else
   {
-    for (tdir=west;tdir>=north;tdir-=2)
+    for (tdir=west;tdir>=north;tdir=(dirtype)(tdir-2))
       if (tdir!=turnaround)
       {
 	obon.dir=tdir;
@@ -1215,16 +1213,16 @@ void TankThink (void)
 void SpawnMutant (fixed gx, fixed gy)
 {
   FindFreeObj();
-  new->x = gx;
-  new->y = gy;
-  new->angle = 0;
-  new->think = MutantThink;
-  new->class = mutantobj;
-  new->size = MINDIST;
-  new->shapenum = MUTANT1PIC;
-  new->radarcolor = 12;
-  new->hitpoints = 1;
-  new->ticcount = Rnd(MUTANTANM*3);
+  _new->x = gx;
+  _new->y = gy;
+  _new->angle = 0;
+  _new->think = MutantThink;
+  _new->_class = mutantobj;
+  _new->size = MINDIST;
+  _new->shapenum = MUTANT1PIC;
+  _new->radarcolor = 12;
+  _new->hitpoints = 1;
+  _new->ticcount = Rnd(MUTANTANM*3);
   CalcBoundsNew();
 }
 
@@ -1245,12 +1243,11 @@ void KillMutant (objtype *hit)
     XPlot (hit->radarx,hit->radary,hit->radarcolor);
 
   hit->radarcolor = 0;
-  hit->class = inertobj;
+  hit->_class = inertobj;
   hit->shapenum = hit->temp1 = MUTANTDIE1PIC;
   hit->think = ExplodeThink;
   hit->stage = hit->ticcount = 0;
 }
-
 
 
 /*
@@ -1414,7 +1411,7 @@ void ChaseThing (objtype *chase)
 
   if (RndT()>128) 	/*randomly determine direction of search*/
   {
-    for (tdir=north;tdir<=west;tdir+=2)
+    for (tdir=north;tdir<=west;tdir=(dirtype)(tdir+2))
       if (tdir!=turnaround)
       {
 	obon.dir=tdir;
@@ -1424,7 +1421,7 @@ void ChaseThing (objtype *chase)
   }
   else
   {
-    for (tdir=west;tdir>=north;tdir-=2)
+    for (tdir=west;tdir>=north;tdir=(dirtype)(tdir-2))
       if (tdir!=turnaround)
       {
 	obon.dir=tdir;
@@ -1511,15 +1508,15 @@ void MutantThink (void)
 void SpawnShield (fixed gx, fixed gy)
 {
   FindFreeObj();
-  new->x = gx;
-  new->y = gy;
-  new->angle = 0;
-  new->think = ShieldThink;
-  new->class = shieldobj;
-  new->size = MINDIST;
-  new->shapenum = SHIELD1PIC;
-  new->radarcolor = 9;
-  new->hitpoints = 3;
+  _new->x = gx;
+  _new->y = gy;
+  _new->angle = 0;
+  _new->think = ShieldThink;
+  _new->_class = shieldobj;
+  _new->size = MINDIST;
+  _new->shapenum = SHIELD1PIC;
+  _new->radarcolor = 9;
+  _new->hitpoints = 3;
   CalcBoundsNew();
 }
 

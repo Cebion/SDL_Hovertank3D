@@ -31,11 +31,13 @@ unsigned tilemap[MAPSIZE][MAPSIZE];
 // play stuff
 //
 
-int godmode,singlestep,leveldone,startlevel,bestlevel;
+int godmode,singlestep,leveldone,startlevel;
+
+long score;
 
 timetype timestruct;
 
-objtype objlist[MAXOBJECTS],obon,*new,*obj,*lastobj,*check;
+objtype objlist[MAXOBJECTS],obon,*_new,*obj,*lastobj,*check;
 
 ControlStruct c;
 
@@ -57,6 +59,7 @@ fixed xmove,ymove;
 
 void DrawCockpit (void);
 void DrawScore (void);
+#if 0
 void FindFreeObj (void);
 void StartLevel (unsigned far *plane1);
 void DropTime (void);
@@ -66,25 +69,36 @@ void Reverse (void);
 void AfterBurn (void);
 void CalcBounds (void);
 void TransformObon (void);
+#endif
 
 void SpawnPlayer (fixed gx, fixed gy);
+#if 0
 void PlayerThink (void);
-void SpawnShot (fixed gx, fixed gy, int angle, classtype class);
+void SpawnShot (fixed gx, fixed gy, int angle, classtype _class);
 void ShotThink (void);
 void ExplodeThink (void);
+#endif
 void SpawnRefugee (fixed gx, fixed gy, int sex);
+#if 0
 void KillRefugee (objtype *hit);
 void RefugeeThink (void);
+#endif
 void SpawnDrone (fixed gx, fixed gy);
+#if 0
 void DroneThink (void);
+#endif
 void SpawnTank (fixed gx, fixed gy);
+#if 0
 void TankThink (void);
+#endif
 void SpawnMutant (fixed gx, fixed gy);
+#if 0
 void MutantThink (void);
 void SpawnWarp (fixed gx, fixed gy);
 void WarpThink (void);
 
 void PlayLoop (void);
+#endif
 void PlayGame (void);
 
 //==========================================================================
@@ -104,7 +118,9 @@ void DrawCockpit (void)
   screencenterx=19;
   screencentery=7;
 
+#if 0
   EGAWRITEMODE(0);
+#endif
   DrawPic (0,0,DASHPIC);
   DrawScore ();
 }
@@ -123,6 +139,7 @@ void DrawScore (void)
 {
   int i;
 
+  char str[512];
   ltoa(score,str,10);
   sx = 22-strlen(str);
   sy = 7;
@@ -154,22 +171,21 @@ void BadThink (void)
 
 void FindFreeObj (void)
 {
-  new=&objlist[1];
-  while (new->class != nothing && new<=lastobj)
-    new++;
+  _new=&objlist[1];
+  while (_new->_class != nothing && _new<=lastobj)
+    _new++;
 
-  if (new>lastobj)
+  if (_new>lastobj)
   {
     lastobj++;
     if (lastobj>=&objlist[MAXOBJECTS])
       Quit("Object list overflow!");
   }
 
-  memset (new,0,sizeof(*new));
+  memset (_new,0,sizeof(*_new));
 
-  new->think = BadThink;
+  _new->think = BadThink;
 }
-
 
 //==========================================================================
 
@@ -181,7 +197,7 @@ void FindFreeObj (void)
 ==================
 */
 
-void StartLevel (unsigned far *plane1)
+void StartLevel (unsigned short *plane1)
 {
   unsigned x,y,tile,dir;
   int angle;
@@ -292,17 +308,12 @@ void DropTime (void)
 void ClipMove (void)
 {
   int	xl,yl,xh,yh,tx,ty,nt1,nt2;
-  long	intersect,basex,basey,pointx,pointy;
-  unsigned inside,total;
+  fixed	intersect,basex,basey,pointx,pointy;
+  fixed inside,total;
 
 //
 // move player and check to see if any corners are in solid tiles
 //
-
-  if (xmove<0)
-    xmove=-(xmove^SIGNBIT);
-  if (ymove<0)
-    ymove=-(ymove^SIGNBIT);
 
   obon.x += xmove;
   obon.y += ymove;
@@ -432,10 +443,10 @@ void CalcBoundsNew (void)
 //
 // calculate hit rect
 //
-  new->xl = new->x - new->size;
-  new->xh = new->x + new->size;
-  new->yl = new->y - new->size;
-  new->yh = new->y + new->size;
+  _new->xl = _new->x - _new->size;
+  _new->xh = _new->x + _new->size;
+  _new->yl = _new->y - _new->size;
+  _new->yh = _new->y + _new->size;
 }
 
 //==========================================================================
@@ -459,22 +470,22 @@ void TransformObon (void)
 //
 // translate point to view centered coordinates
 //
-  gx = FixedAdd(obon.x,viewx|SIGNBIT);
-  gy = FixedAdd(obon.y,viewy|SIGNBIT);
+  gx = obon.x-viewx;
+  gy = obon.y-viewy;
 
 //
 // calculate newx
 //
   gxt = FixedByFrac(gx,viewcos);
   gyt = FixedByFrac(gy,viewsin);
-  obon.viewx = FixedAdd(gxt,gyt^SIGNBIT);
+  obon.viewx = gxt-gyt;
 
 //
 // calculate newy
 //
   gxt = FixedByFrac(gx,viewsin);
   gyt = FixedByFrac(gy,viewcos);
-  obon.viewy = FixedAdd(gyt,gxt);
+  obon.viewy = gyt+gxt;
 
 //
 // update radar
@@ -482,13 +493,8 @@ void TransformObon (void)
   if (obon.radarx)
     XPlot (obon.radarx,obon.radary,obon.radarcolor);
 
-  absdx = obon.viewx&(~SIGNBIT);
-  absdy = obon.viewy&(~SIGNBIT);
-
-  if (obon.viewx<0)
-    obon.viewx = -absdx;
-  if (obon.viewy<0)
-    obon.viewy = -absdy;
+  absdx = abs(obon.viewx);
+  absdy = abs(obon.viewy);
 
   if (absdx<RADARRANGE && absdy<RADARRANGE)
   {
@@ -512,12 +518,14 @@ void TransformObon (void)
 =====================
 */
 
-void Block (x,y,color)
+#if 0
+void Block (int x, int y, int color)
 {
   int dest;
 
   dest = ylookup[y<<3]+x+screenofs;
 
+#if 0
 asm {
 	mov	es,[screenseg]
 	mov	di,[dest]
@@ -531,9 +539,20 @@ asm {
 	mov	[es:di+SCREENWIDTH*6],al
 	mov	[es:di+SCREENWIDTH*7],al
   }
+#else
+  ((unsigned char*)dest)[0] = color;
+  ((unsigned char*)dest)[SCREENWIDTH*1] = color;
+  ((unsigned char*)dest)[SCREENWIDTH*2] = color;
+  ((unsigned char*)dest)[SCREENWIDTH*3] = color;
+  ((unsigned char*)dest)[SCREENWIDTH*4] = color;
+  ((unsigned char*)dest)[SCREENWIDTH*5] = color;
+  ((unsigned char*)dest)[SCREENWIDTH*6] = color;
+  ((unsigned char*)dest)[SCREENWIDTH*7] = color;
+#endif
 }
+#endif
 
-void Frame(xl,yl,xh,yh,color)
+void Frame(int xl, int yl, int xh, int yh, int color)
 {
   int x,y;
 
@@ -566,7 +585,9 @@ void WarpEffect (void)
 
   memset (zbuffer,0,sizeof(zbuffer));
 
+#if 0
   EGAWRITEMODE(2);
+#endif
 
   for (size=0;size<8;size++)
   {
@@ -598,8 +619,10 @@ void WarpEffect (void)
 
   ClearKeys();
 
+#if 0
   EGAWRITEMODE(0);
   EGABITMASK(255);
+#endif
 }
 
 //==========================================================================
@@ -635,6 +658,7 @@ void GameOver (void)
     CPPrint ("New High Score!\n");
     py+=5;
     CPPrint ("Score\n");
+	char str[512];
     ltoa(score,str,10);
     CPPrint (str);
     PPrint ("\n\n");
@@ -861,10 +885,13 @@ void BaseScreen (void)
 //
   level++;
   LoadLevel();
+
   StopDrive();
 
+#if 0
   EGAWRITEMODE(0);
   _fmemset (MK_FP(0xa000,0),0,0xffff);
+#endif
   EGASplitScreen(200-STATUSLINES);
   SetLineWidth(SCREENWIDTH);
   DrawCockpit();
@@ -927,7 +954,7 @@ void PlayLoop (void)
 
     for (obj = &objlist[0];obj<=lastobj;obj++)
     {
-      if (obj->class)
+      if (obj->_class)
       {
 	obon=*obj;
 	obon.think();
@@ -986,6 +1013,7 @@ void PlayGame (void)
 	ExpWin(28,3);
 	py+=6;
 	PPrint(" Start at what level (1-");
+    char str[80];
 	itoa(bestlevel,str,10);
 	PPrint (str);
 	PPrint (")?");
@@ -1042,7 +1070,7 @@ restart:
 
     screenofs = 0;
     for (obj=&objlist[1];obj<lastobj;obj++)
-      if (obj->class && obj->radarx)
+      if (obj->_class && obj->radarx)
 	XPlot (obj->radarx,obj->radary,obj->radarcolor);
 
     if (bordertime)
@@ -1069,8 +1097,8 @@ restart:
     py+=3;
     CPPrint ("Continue game ?");
     ClearKeys();
-    ch = PGet();
-    if (toupper(ch)=='Y')
+    char ch = PGet();
+    if (toupper(ch&0xff)=='Y')
     {
       level--;
       startlevel = level;	// don't show base screen

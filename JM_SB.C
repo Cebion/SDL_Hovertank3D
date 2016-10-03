@@ -23,11 +23,11 @@
 **	v1.0d4
 */
 
-#include <dos.h>
+//#include <dos.h>
 
 #include "jm_sb.h"
 
-#pragma	warn	-pia	// Because I use if (x = y) alot...
+//#pragma	warn	-pia	// Because I use if (x = y) alot...
 
 // Macros for SoundBlaster stuff
 #define	sbOut(n,b)	outportb((n) + sbLocation,b)
@@ -40,12 +40,19 @@
 //
 static	boolean			sbSamplePlaying = false;
 static	byte			sbOldIntMask = -1;
-static	byte			huge *sbNextSegPtr;
+static	byte			*sbNextSegPtr;
 static	int				sbLocation = -1,sbInterrupt = 7,sbIntVec = 0xf,
 						sbIntVectors[] = {-1,-1,0xa,0xb,-1,0xd,-1,0xf};
 static	longword		sbNextSegLen;
-static	SampledSound	huge *sbSamples;
+static	SampledSound	*sbSamples;
+#if 0
 static	void interrupt	(*sbOldIntHand)(void);
+#endif
+
+byte * jmData;
+int jmDataLength;
+int jmDataFreq;
+float jmDataTime;
 
 //
 //	jmDelay(usec) - Delays for usec micro-seconds
@@ -68,8 +75,9 @@ jmDelay(int usec)
 //
 //	Plays a chunk of sampled sound
 //
+#if 0
 static longword
-jmPlaySeg(byte huge *data,longword length)
+jmPlaySeg(byte *data,longword length)
 {
 	unsigned		datapage;
 	longword		dataofs,uselen;
@@ -109,10 +117,12 @@ jmPlaySeg(byte huge *data,longword length)
 
 	return(++uselen);
 }
+#endif
 
 //
 //	Services the SoundBlaster DMA interrupt
 //
+#if 0
 void interrupt
 jmSBService(void)
 {
@@ -135,15 +145,15 @@ jmSBService(void)
 	else
 		jmStopSample();
 }
+#endif
 
 //
 //	Plays a sampled sound. Returns immediately and uses DMA to play the sound
 //
 void
-jmPlaySample(sound)
-	int	sound;
+jmPlaySample(int sound)
 {
-	byte			huge *data,
+	byte			*data,
 					timevalue;
 	longword		used;
 	SampledSound	sample;
@@ -152,7 +162,8 @@ jmPlaySample(sound)
 
 	sample = sbSamples[--sound];
 
-	data = ((byte huge *)sbSamples) + sample.offset;
+#if 0
+	data = ((byte *)sbSamples) + sample.offset;
 	timevalue = 256 - (1000000 / sample.hertz);
 
 //	printf("sample #%d ",sound);
@@ -182,6 +193,11 @@ jmPlaySample(sound)
 //	printf("enabling DSP DMA request\n");
 	sbWriteDelay();
 	sbOut(sbWriteCmd,0xd4);						// Make sure DSP DMA is enabled
+#endif
+	jmData = ((byte *)sbSamples) + sample.offset;
+	jmDataLength = sample.length;
+	jmDataFreq = sample.hertz;
+	jmDataTime = 0;
 
 //	printf("sound should be playing\n");
 	sbSamplePlaying = true;
@@ -193,7 +209,8 @@ jmPlaySample(sound)
 void
 jmStopSample(void)
 {
-extern unsigned	SndPriority;
+extern byte	SndPriority;
+#if 0
 	byte	is;
 
 	if (sbSamplePlaying)
@@ -214,10 +231,20 @@ extern unsigned	SndPriority;
 		sbSamplePlaying = false;
 		SndPriority = 0;	// JC: hack for playsound
 	}
+#endif
+	if (sbSamplePlaying)
+	{
+		jmData = 0;
+		jmDataLength = 0;
+		jmDataFreq = 0;
+		sbSamplePlaying = false;
+		SndPriority = 0;
+	}
 }
 //
 //	Checks to see if a SoundBlaster resides at a particular I/O location
 //
+#if 0
 static boolean
 jmCheckSB(int port)
 {
@@ -245,6 +272,7 @@ jmCheckSB(int port)
 	sbLocation = -1;						// Retry count exceeded - fail
 	return(false);
 }
+#endif
 
 //
 //	Checks to see if a SoundBlaster is in the system. If the port passed is
@@ -255,6 +283,7 @@ jmCheckSB(int port)
 boolean
 jmDetectSoundBlaster(int port)
 {
+#if 0
 	int	i;
 
 	if (port == 0)					// If user specifies default address, use 2
@@ -270,21 +299,26 @@ jmDetectSoundBlaster(int port)
 	}
 	else
 		return(jmCheckSB(port));	// User specified address or default
+#endif
+	return 1;
 }
 
 //
 //	Sets the interrupt number that my code expects the SoundBlaster to use
 //
+#if 0
 void
 jmSetSBInterrupt(int num)
 {
 	sbInterrupt = num;
 	sbIntVec = sbIntVectors[sbInterrupt];
 }
+#endif
 
 void
 jmStartSB(void)
 {
+#if 0
 //	printf("setting interrupt #0x%02x handler\n",sbIntVec);
 	sbOldIntHand = getvect(sbIntVec);	// Get old interrupt handler
 	setvect(sbIntVec,jmSBService);		// Set mine
@@ -292,6 +326,7 @@ jmStartSB(void)
 //	printf("setting DSP modes\n");
 	sbWriteDelay();
 	sbOut(sbWriteCmd,0xd1);						// Turn on DSP speaker
+#endif
 }
 
 void
@@ -299,8 +334,10 @@ jmShutSB(void)
 {
 	jmStopSample();
 
+#if 0
 //	printf("restoring interrupt vector\n");
 	setvect(sbIntVec,sbOldIntHand);	// Set vector back
+#endif
 }
 
 boolean
@@ -310,8 +347,7 @@ jmSamplePlaying(void)
 }
 
 void
-jmSetSamplePtr(s)
-	SampledSound huge *s;
+jmSetSamplePtr(SampledSound *s)
 {
 	sbSamples = s;
 }

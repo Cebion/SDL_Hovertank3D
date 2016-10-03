@@ -351,6 +351,8 @@ int BackTrace (int finish)
     tile.y = oty;
     rightwall->x1 = oldwall->x2;		// common edge with last wall
     rightwall->height1 = oldwall->height2;
+	rightwall->wx0 = oldwall->wx1;
+	rightwall->wz0 = oldwall->wz1;
     return 0;
   }
 
@@ -386,6 +388,8 @@ int BackTrace (int finish)
   edgex = ((long)tile.x<<16);
   edgey = ((long)tile.y<<16);
 
+  rightwall->wx0 = edgex+point1x[wallon];
+  rightwall->wz0 = edgey+point1y[wallon];
   TransformPoint (edgex+point1x[wallon],edgey+point1y[wallon],
     &rightwall->x1,&rightwall->height1);
 
@@ -441,6 +445,8 @@ void ForwardTrace (void)
 //
 // if entire first wall is invisable, corner
 //
+  rightwall->wx1 = edgex+point2x[wallon];
+  rightwall->wz1 = edgey+point2y[wallon];
   TransformPoint (edgex+point2x[wallon],edgey+point2y[wallon],
     &rightwall->x2,&rightwall->height2);
 
@@ -452,6 +458,8 @@ void ForwardTrace (void)
 // transform first point
 //
 
+  rightwall->wx0 = edgex+point1x[wallon];
+  rightwall->wz0 = edgey+point1y[wallon];
   TransformPoint (edgex+point1x[wallon],edgey+point1y[wallon],
     &rightwall->x1,&rightwall->height1);
 
@@ -484,6 +492,8 @@ int FinishWall (void)
   else
     rightwall->color  = basecolor;
 
+  rightwall->wx1 = edgex;
+  rightwall->wz1 = edgey;
   TransformPoint (edgex,edgey,&rightwall->x2,&rightwall->height2);
 
   if (rightwall->x2 <= (rightwall-1)->x2+2
@@ -543,6 +553,8 @@ void InsideCorner (void)
   //
     rightwall->x1 = oldwall->x2;		// common edge with last wall
     rightwall->height1 = oldwall->height2;
+	rightwall->wx0 = oldwall->wx1;
+	rightwall->wz0 = oldwall->wz1;
     basecolor = tilemap[tile.x][tile.y];
     return;			// continue from here
   }
@@ -566,6 +578,8 @@ void InsideCorner (void)
 
   if (!BackTrace(0))		// backtrace without finishing a wall
   {
+    rightwall->wx0 = edgex;
+    rightwall->wz0 = edgey;
     TransformPoint (edgex,edgey,&rightwall->x1,&rightwall->height1);
     basecolor = tilemap[tile.x][tile.y];
   }
@@ -619,6 +633,8 @@ void OutsideCorner (void)
   //
     rightwall->x1 = oldwall->x2;		// common edge with last wall
     rightwall->height1 = oldwall->height2;
+	rightwall->wx0 = oldwall->wx1;
+	rightwall->wz0 = oldwall->wz1;
     return;			// still on same tile, so color is ok
   }
 
@@ -681,6 +697,8 @@ restart:
   edgex = ((long)tile.x<<16);
   edgey = ((long)tile.y<<16);
 
+  rightwall->wx0 = edgex+point1x[wallon];
+  rightwall->wz0 = edgey+point1y[wallon];
   TransformPoint (edgex+point1x[wallon],edgey+point1y[wallon],
     &rightwall->x1,&rightwall->height1);
 
@@ -772,6 +790,8 @@ advance:
       FinishWall ();
       rightwall->x1 = oldwall->x2;	// new wall shares this edge
       rightwall->height1 = oldwall->height2;
+	  rightwall->wx0 = oldwall->wx1;
+	  rightwall->wz0 = oldwall->wz1;
       basecolor = newcolor;
 
       continue;
@@ -812,6 +832,8 @@ advance:
   {
     rightwall->x1 = oldwall->x2;		// common edge with last wall
     rightwall->height1 = oldwall->height2;
+	rightwall->wx0 = oldwall->wx1;
+	rightwall->wz0 = oldwall->wz1;
     edgex = ((long)tile.x<<16)+point2x[wallon];
     edgey = ((long)tile.y<<16)+point2y[wallon];
     FinishWall();

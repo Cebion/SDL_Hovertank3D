@@ -16,28 +16,36 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-typedef void _seg * memptr;
+typedef void * memptr;
 
 extern unsigned totalmem;		// total paragraphs available
-extern int	EMSpresent,XMSpresent;
 
+//#define GUARDBYTES 16
 
 //==========================================================================
 
 //
 // public prototypes
 //
-
 void MMStartup (void);
 void MMShutdown (void);
-void MMMapEMS (void);
+#ifdef GUARDBYTES
+void _MMGetPtr (memptr *baseptr,long size,const char * fname, int line);
+#define MMGetPtr(baseptr,size) _MMGetPtr(baseptr,size,__FILE__,__LINE__)
+#else
 void MMGetPtr (memptr *baseptr,long size);
+#endif
 void MMFreePtr (memptr *baseptr);
 void MMSetPurge (memptr *baseptr, int purge);
 void MMSortMem (void);
-void MMBlockDump (void);
 unsigned MMUnusedMemory (void);
 unsigned MMTotalFree (void);
 
+#ifdef GUARDBYTES
+void MMValidatePtr (memptr *baseptr);
+void MMValidateAll ();
+#else
+#define MMValidatePtr(baseptr) 
+#define MMValidateAll() 
+#endif
 
-void PatchPointers (void);	// must be present in the main program

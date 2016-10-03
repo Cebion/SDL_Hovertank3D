@@ -21,12 +21,15 @@
 //	Constants, structs, and function prototypes for my SoundBlaster stuff
 //
 typedef unsigned char byte;
-typedef unsigned boolean;
+typedef unsigned short boolean;
 
 
 #ifndef	__jm__
 #include "jm.h"
 #endif
+
+#ifndef __jm_sb__
+#define __jm_sb__
 
 // Registers for the Sound Blaster card - needs to be offset by n0
 #define	sbReset		0x206
@@ -37,6 +40,7 @@ typedef unsigned boolean;
 #define	sbDataAvail	0x20e
 
 
+#pragma pack(push, 1)
 typedef	struct
 		{
 			longword	offset,length,
@@ -44,6 +48,12 @@ typedef	struct
 			byte		bits,
 						reference;
 		} SampledSound;
+#pragma pack(pop)
+
+extern byte * jmData;
+extern int jmDataLength;
+extern int jmDataFreq;
+extern float jmDataTime;
 
 //
 //	Function prototypes
@@ -51,7 +61,11 @@ typedef	struct
 
 extern	void	jmStartSB(void),jmStopSB(void),
 				jmSetSBInterrupt(int),
-				jmSetSamplePtr(SampledSound huge *),
+				jmSetSamplePtr(SampledSound *),
 				jmPlaySample(int),jmStopSample(void);
 extern	boolean	jmDetectSoundBlaster(int),
 				jmSamplePlaying(void);
+
+void jmShutSB(void);
+
+#endif//__jm_sb__

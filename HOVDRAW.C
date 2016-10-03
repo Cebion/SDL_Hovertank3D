@@ -52,13 +52,13 @@ int	segstart[VIEWHEIGHT],	// addline tracks line segment and draws
   if (a>segend[y]+1)							\
   {                                                                     \
     if (y>CENTERY)                                                      \
-      DrawLine(segend[y]+1,a-1,y,8);					\
+      DrawLineZ(segend[y]+1,a-1,y,leftheight,rightheight,8);					\
     else                                                                \
-      DrawLine(segend[y]+1,a-1,y,0);					\
+      DrawLineZ(segend[y]+1,a-1,y,leftheight,rightheight,0);					\
   }									\
-  DrawLine(a,a,y,0);							\
+  DrawLineZ(a,a,y,leftheight,rightheight,0);							\
   if (a+1<=b)								\
-    DrawLine(a+1,b,y,c);						\
+    DrawLineZ(a+1,b,y,leftheight,rightheight,c);						\
   segend[y]=b;								\
 }
 
@@ -115,6 +115,7 @@ int	zbuffer[VIEWXH+1];	// holds the height of the wall at that point
 
 //==========================================================================
 
+#if 0
 void	DrawLine (int xl, int xh, int y,int color);
 void	DrawWall (walltype *wallptr);
 void	TraceRay (unsigned angle);
@@ -130,6 +131,7 @@ void	FollowWall (void);
 
 void	NewScene (void);
 void	BuildTables (void);
+#endif
 
 //==========================================================================
 
@@ -146,6 +148,7 @@ void	BuildTables (void);
 ==================
 */
 
+#if 0
 unsigned char leftmask[8] = {0xff,0x7f,0x3f,0x1f,0xf,7,3,1};
 unsigned char rightmask[8] = {0x80,0xc0,0xe0,0xf0,0xf8,0xfc,0xfe,0xff};
 
@@ -227,6 +230,7 @@ asm	out	dx,ax		// mask off pixels
 asm	xchg	bh,[es:di]	// load latches and write pixels
 
 }
+#endif
 
 //==========================================================================
 
@@ -250,7 +254,7 @@ void DrawWall (walltype *wallptr)
   int 		static	y1l,y1h,y2l,y2h;
 
   int		i;
-  unsigned	leftheight,rightheight;
+  long	leftheight,rightheight;
   long		height,heightstep;
 
 
@@ -283,6 +287,9 @@ void DrawWall (walltype *wallptr)
   i = wall.leftclip-wall.x1;
   if (i)
     height += heightstep*i;		// adjust for clipped area
+
+  leftheight = height;
+  rightheight = height + (wall.rightclip-wall.leftclip+1)*heightstep;
 
   for (x=wall.leftclip;x<=wall.rightclip;x++)
   {
@@ -411,15 +418,15 @@ void TraceRay (unsigned angle)
 // advance point so it is even with the view plane before we start checking
 //
   fixtemp = FixedByFrac(prestep,tracexstep);
-  tracex = FixedAdd (viewx,fixtemp);
+  tracex = viewx+fixtemp;
   fixtemp = FixedByFrac(prestep,traceystep);
-  tracey = FixedAdd (viewy,fixtemp^SIGNBIT);
+  tracey = viewy-fixtemp;
 
-  if (tracexstep&SIGNBIT)	// use 2's complement, not signed magnitude
-    tracexstep = -(tracexstep&~SIGNBIT);
+  if (tracexstep < 0)	// use 2's complement, not signed magnitude
+    tracexstep = -abs(tracexstep);
 
-  if (traceystep&SIGNBIT)	// use 2's complement, not signed magnitude
-    traceystep = -(traceystep&~SIGNBIT);
+  if (traceystep < 0)	// use 2's complement, not signed magnitude
+    traceystep = -abs(traceystep);
 
   tile.x = tracex>>TILESHIFT;	// starting point in tiles
   tile.y = tracey>>TILESHIFT;
@@ -520,7 +527,14 @@ void TraceRay (unsigned angle)
 ========================
 */
 
+fixed FixedByFrac (fixed a, fixed b)
+{
+// This function did some serious work once, but on modern hardware it is rather trivial.
+	fixed l = (fixed)((float)a * (float)b / 65536.0); // 64bit floats can handle 32bit ints easily
+	return l;
+}
 
+#if 0
 fixed FixedByFrac (fixed a, fixed b)
 {
   fixed value;
@@ -545,6 +559,7 @@ asm	mov	[WORD PTR value+2],dx
 
   return value;
 }
+#endif
 
 
 /*
@@ -558,6 +573,7 @@ asm	mov	[WORD PTR value+2],dx
 =========================
 */
 
+#if 0
 fixed FixedAdd (fixed a, fixed b)
 {
   fixed value;
@@ -603,6 +619,7 @@ asm	mov	[WORD PTR value+2],dx
 
   return value;
 }
+#endif
 
 //==========================================================================
 
@@ -642,22 +659,22 @@ void TransformPoint (fixed gx, fixed gy, int *screenx, unsigned *screenheight)
 //
 // translate point to view centered coordinates
 //
-  gx = FixedAdd(gx,viewx|SIGNBIT);
-  gy = FixedAdd(gy,viewy|SIGNBIT);
+  gx = gx-viewx;
+  gy = gy-viewy;
 
 //
 // calculate newx
 //
   gxt = FixedByFrac(gx,viewcos);
   gyt = FixedByFrac(gy,viewsin);
-  nx = FixedAdd(gxt,gyt^SIGNBIT);
+  nx = gxt-gyt;
 
 //
 // calculate newy
 //
   gxt = FixedByFrac(gx,viewsin);
   gyt = FixedByFrac(gy,viewcos);
-  ny = FixedAdd(gyt,gxt);
+  ny = gyt+gxt;
 
 //
 // calculate perspective ratio
@@ -670,10 +687,7 @@ void TransformPoint (fixed gx, fixed gy, int *screenx, unsigned *screenheight)
   if (ratio<=MINRATIO)
     ratio = MINRATIO;
 
-  if (ny & SIGNBIT)
-    *screenx = CENTERX - (ny&~SIGNBIT)/ratio;
-  else
-    *screenx = CENTERX + ny/ratio;
+  *screenx = CENTERX + ny/ratio;
 
   *screenheight = TILEGLOBAL/ratio;
 
@@ -689,15 +703,15 @@ fixed TransformX (fixed gx, fixed gy)
 //
 // translate point to view centered coordinates
 //
-  gx = FixedAdd(gx,viewx|SIGNBIT);
-  gy = FixedAdd(gy,viewy|SIGNBIT);
+  gx = gx-viewx;
+  gy = gy-viewy;
 
 //
 // calculate newx
 //
   gxt = FixedByFrac(gx,viewcos);
   gyt = FixedByFrac(gy,viewsin);
-  return FixedAdd(gxt,gyt^SIGNBIT);
+  return gxt-gyt;
 }
 
 //==========================================================================
@@ -746,7 +760,7 @@ void BuildTables (void)
       sintable[i+ANGLES]=
       sintable[ANGLES/2-i] = value;
     sintable[ANGLES-i]=
-      sintable[ANGLES/2+i] = value | SIGNBIT;
+      sintable[ANGLES/2+i] = -value;
     angle += anglestep;
   }
 
@@ -767,9 +781,9 @@ void BuildTables (void)
 //
   for (i=0;i<SHIFTFRAMES;i++)
   {
-    angle = (long)ANGLES*i/SHIFTFRAMES;
+    long angle = (long)ANGLES*i/SHIFTFRAMES;
     value = FixedByFrac(7*GLOBAL1,sintable[angle]);
-    yshift[i] = SCREENWIDTH*(FixedAdd(value,8*GLOBAL1)>>16);
+    yshift[i] = SCREENWIDTH*((value+8*GLOBAL1)>>16);
   }
 
 //
@@ -802,8 +816,8 @@ void StartView (void)
   viewangle = objlist[0].angle;
   viewsin = sintable[viewangle];
   viewcos = costable[viewangle];
-  viewx = FixedAdd( objlist[0].x,FixedByFrac(FOCALLENGTH,viewcos)^SIGNBIT  );
-  viewy = FixedAdd( objlist[0].y,FixedByFrac(FOCALLENGTH,viewsin) );
+  viewx = objlist[0].x-FixedByFrac(FOCALLENGTH,viewcos);
+  viewy = objlist[0].y+FixedByFrac(FOCALLENGTH,viewsin);
 
   focal.x = viewx>>TILESHIFT;
   focal.y = viewy>>TILESHIFT;
@@ -891,11 +905,18 @@ void DrawWallList (void)
     {
       wall->leftclip = newleft+1;
       wall->rightclip = rightclip;
+#if 0
       DrawWall (wall);
+#else
+	  DrawWallZ(
+		  wall->wx0/65536.f,wall->wz0/65536.f,
+		  wall->wx1/65536.f,wall->wz1/65536.f,wall->color);
+#endif
       leftx = rightclip;
     }
   }
 
+#if 0
 //
 // finish all lines to the right edge
 //
@@ -906,6 +927,7 @@ void DrawWallList (void)
   for (;i<VIEWHEIGHT;i++)
     if (segend[i]<VIEWXH)
       DrawLine(segend[i]+1,VIEWXH,i,8);
+#endif
 
 }
 
@@ -930,7 +952,7 @@ int	depthsort[MAXOBJECTS],
 void DrawScaleds (void)
 {
   int i,j,least,leastnum,screenx,numvisable;
-  unsigned ratio,screenratio,scaleratio,screenheight;
+  fixed ratio, screenheight;
   fixed viewx;
   objtype *obj;
 
@@ -940,8 +962,9 @@ void DrawScaleds (void)
 // calculate base positions of all objects
 //
   for (obj = &objlist[1];obj<=lastobj;obj++)
-    if (obj->class)
+    if (obj->_class)
     {
+#if 0
       viewx = obj->viewx - obj->size;		// now value of nearest edge
       if (viewx >= FOCALLENGTH+MINDIST)
       {
@@ -956,8 +979,12 @@ void DrawScaleds (void)
 	  numvisable++;
 	}
       }
+#else
+		DrawShapeZ(obj->x / 65536.f, obj->y / 65536.f, scalesegs[obj->shapenum]);
+#endif
     }
 
+#if 0
   if (!numvisable)
     return;
 
@@ -987,6 +1014,7 @@ void DrawScaleds (void)
     SC_ScaleShape(obscreenx[j],CENTERY+5,sortheight[i]
       ,scalesegs[obshapenum[j]]);
   }
+#endif
 }
 
 //==========================================================================
@@ -1005,6 +1033,8 @@ void DrawScaleds (void)
 
 void DrawCrossHairs (void)
 {
+	// black vertical bar
+#if 0
   EGABITMASK (60);
 
   asm	mov	es,[screenseg]
@@ -1017,7 +1047,13 @@ vert1:
   asm	xchg	al,[BYTE PTR es:di]	// write color 0
   asm	add	di,dx
   asm	loop	vert1
+#endif
+	int dix = 20*8;
+	int diy = 64-CROSSSIZE/2;
+	DrawRect(dix+2, diy, 4, CROSSSIZE, 0);
 
+	// black horizontal bar
+#if 0
   EGABITMASK (255);
 
   asm	mov	di,SCREENWIDTH*(82-CROSSSIZE/2)+18
@@ -1034,7 +1070,13 @@ vert1:
   asm	add	di,SCREENWIDTH-5
   asm	mov	cx,5
   asm	rep	stosb
+#endif
+	dix = 18*8;
+	diy = 82-CROSSSIZE/2;
+	DrawRect(dix, diy, 5*8, 4, 0);
 
+	// white horizontal bar
+#if 0
   asm	mov	di,SCREENWIDTH*(83-CROSSSIZE/2)+19
   asm	add	di,[screenofs]
   asm	mov	al,15
@@ -1043,8 +1085,13 @@ vert1:
   asm	add	di,SCREENWIDTH-3
   asm	mov	cx,3
   asm	rep	stosb
+#endif
+	dix = 19*8;
+	diy = 83-CROSSSIZE/2;
+	DrawRect(dix, diy, 3*8, 2, 15);
 
-
+	// white horizontal bar left edge
+#if 0
   EGABITMASK (127);
 
   asm	mov	di,SCREENWIDTH*(83-CROSSSIZE/2)+18
@@ -1053,7 +1100,13 @@ vert1:
   asm	xchg	al,[es:di]
   asm	mov	al,15
   asm	xchg	al,[es:di+SCREENWIDTH]
+#endif
+	dix = 18*8;
+	diy = 83-CROSSSIZE/2;
+	DrawRect(dix+1, diy, 7, 2, 15);
 
+	// white horizontal bar right edge
+#if 0
   EGABITMASK (254);
 
   asm	mov	di,SCREENWIDTH*(83-CROSSSIZE/2)+18
@@ -1062,7 +1115,13 @@ vert1:
   asm	xchg	al,[es:di+4]
   asm	mov	al,15
   asm	xchg	al,[es:di+4+SCREENWIDTH]
+#endif
+	dix = 18*8 + 4*8;
+	diy = 83-CROSSSIZE/2;
+	DrawRect(dix, diy, 7, 2, 15);
 
+	// white verticle bar
+#if 0
   EGABITMASK (24);
 
   asm	mov	cx,CROSSSIZE-2
@@ -1074,6 +1133,10 @@ vert2:
   asm	xchg	al,[es:di]	// write color 15
   asm	add	di,dx
   asm	loop	vert2
+#endif
+	dix = 20*8;
+	diy = (65-CROSSSIZE/2);
+	DrawRect(dix+3, diy, 2, CROSSSIZE-2, 15);
 }
 
 //==========================================================================
@@ -1093,10 +1156,16 @@ void FinishView (void)
   if (++screenpage == 3)
     screenpage = 0;
 
-  screenorigin = screenofs = screenloc[screenpage];
+  //screenorigin = 
+  screenofs = screenloc[screenpage];
 
+#if 0
   EGAWRITEMODE(2);
+#endif
 
+  EnableZ(0, 0, VIEWWIDTH, VIEWHEIGHT, viewx/65536.f, viewy/65536.f, viewangle);
+  DrawPlaneZ(MAPSIZE,MAPSIZE,0.5,0);
+  DrawPlaneZ(MAPSIZE,MAPSIZE,-0.5,8);
 //
 // draw the wall list
 //
@@ -1107,6 +1176,8 @@ void FinishView (void)
 //
   DrawScaleds();
 
+  DisableZ();
+
 //
 // show screen and time last cycle
 //
@@ -1114,6 +1185,7 @@ void FinishView (void)
 
   DrawCrossHairs ();
 
+#if 0
   EGAWRITEMODE(0);
 
 asm 	cli
@@ -1137,6 +1209,9 @@ asm	mov	al,cl
 asm	out	dx,al		// set the low byte
 
 asm	sti
+#else
+  SetScreen(screenofs,0);
+#endif
 
 
 #ifdef ADAPTIVE

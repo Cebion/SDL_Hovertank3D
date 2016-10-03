@@ -19,7 +19,8 @@
 #define CATALOG
 
 #include "HOVERDEF.H"
-#pragma hdrstop
+
+#include <direct.h> // _chdir
 
 /*
 
@@ -42,35 +43,39 @@ stinks!
 
 int SNDstarted,KBDstarted;      // whether int handlers were started
 
-int grhandle,levelhandle,soundhandle;
+//int grhandle,levelhandle,soundhandle;
 
+#pragma pack(push, 1)
 typedef struct
 {
-  int headersize;
+  short headersize;
   long dictionary;
   long dataoffsets;
 } grheadtype;
+#pragma pack(pop)
 
-grheadtype      *grhead;        // sets grhuffman and grstarts from here
-huffnode        *grhuffman;     // huffman dictionary for egagraph
+grheadtype	*grhead;	// sets grhuffman and grstarts from here
+huffnode	*grhuffman;	// huffman dictionary for egagraph
 long            *grstarts;      // array of offsets in egagraph, -1 for sparse
-int             grhandle;       // handle to egagraph, kept open allways
+FILE*           grhandle;       // handle to egagraph, kept open allways
 long            grposition;     // current seek position in file
 long            chunkcomplen;   // compressed length of a chunk
 
 
-int soundblaster;               // present?
+//int soundblaster;               // present?
 
-int levelhandle,soundhandle;
+FILE* levelhandle,*soundhandle;
 
 #define BUFFERSIZE      1024
 memptr  bufferseg;              // small general purpose memory block
 
-memptr  levelseg;
+memptr	levelseg;
 
 int tedlevel,ingame,resetgame;
 
 memptr scalesegs[NUMPICS];
+
+LevelDef *levelheader;
 
 /*
 =============================================================================
@@ -238,6 +243,7 @@ int CheckKeys(void)
   if (!NBKscan)
     return 0;
 
+  int ch;
   switch (NBKscan&0x7f)
   {
     case 0x3b:                  // F1 = help
@@ -248,12 +254,13 @@ int CheckKeys(void)
       ClearKeys ();
       ExpWin (13,1);
       PPrint ("Sound (Y/N)?");
-	  ch=toupper(PGet());
+	  ch=toupper(PGet()&0xff);
       if (ch=='N')
-	soundmode = false;
+	soundmode = 0;
       else if (ch=='Y')
-	soundmode = true;
+	soundmode = 1;
       break;
+#if 0
     case 0x3d:                  // F3 = keyboard mode
       ClearKeys ();
       calibratekeys ();
@@ -262,11 +269,12 @@ int CheckKeys(void)
       ClearKeys ();
       CalibrateJoy (1);
       break;
+#endif
     case 0x3f:                  // F5 = reset game
       ClearKeys ();
       ExpWin (18,1);
       PPrint ("RESET GAME (Y/N)?");
-      ch=toupper(PGet());
+      ch=toupper(PGet()&0xff);
       if (ch=='Y')
       {
 	resetgame = 1;
@@ -281,7 +289,7 @@ int CheckKeys(void)
       ClearKeys ();
       ExpWin (12,1);
 		PPrint ("QUIT (Y/N)?");
-      ch=toupper(PGet());
+      ch=toupper(PGet()&0xff);
       if (ch=='Y')
 	Quit ("");
       break;
@@ -316,8 +324,8 @@ long GetChunkLength (int chunk)
 {
   long len;
 
-  lseek(grhandle,grstarts[chunk],SEEK_SET);
-  read(grhandle,&len,sizeof(len));
+  fseek(grhandle,grstarts[chunk],SEEK_SET);
+  fread(&len,1,sizeof(len),grhandle);
   chunkcomplen = grstarts[chunk+1]-grstarts[chunk]-4;
 
   return len;
@@ -338,21 +346,21 @@ long GetChunkLength (int chunk)
 
 void LoadNearData (void)
 {
-  int handle;
+  FILE *handle;
   long length;
 
 //
 // load egahead.ext (offsets and dictionary for graphics file)
 //
-  if ((handle = open("EGAHEAD."EXTENSION, O_RDONLY | O_BINARY, S_IWRITE | S_IREAD)) == -1)
+  if (!(handle = fopen("EGAHEAD."EXTENSION, "rb")))
 	 Quit ("Can't open EGAHEAD."EXTENSION"!");
 
   length = filelength(handle);
-  grhead = malloc(length);
+  grhead = (grheadtype*)malloc(length);
 
-  read(handle, grhead, length);
+  fread(grhead, 1, length, handle);
 
-  close(handle);
+  fclose(handle);
 
 
 }
@@ -369,11 +377,12 @@ void LoadNearData (void)
 ==========================
 */
 
-void SegRead (int handle, memptr dest, long length)
+void SegRead (FILE * handle, memptr dest, long length)
 {
   if (length>0xffffl)
 	 Quit ("SegRead doesn't support 64K reads yet!");
 
+#if 0
 asm             push    ds
 asm             mov     bx,[handle]
 asm             mov     cx,[WORD PTR length]
@@ -382,6 +391,9 @@ asm             mov     ds,[dest]
 asm             mov     ah,3fh                  // READ w/handle
 asm             int     21h
 asm             pop     ds
+#endif
+
+  fread (dest,1,length,handle);
 
 }
 
@@ -410,8 +422,8 @@ void InitGrFile (void)
 //
 // Open the graphics file, leaving it open until the game is finished
 //
-  grhandle = open("EGAGRAPH."EXTENSION, O_RDONLY | O_BINARY);
-  if (grhandle == -1)
+  grhandle = fopen("EGAGRAPH."EXTENSION, "rb");
+  if (!grhandle)
 	 Quit ("Cannot open EGAGRAPH."EXTENSION"!");
 
 
@@ -424,7 +436,7 @@ void InitGrFile (void)
   GetChunkLength(STRUCTPIC);            // position file pointer
   MMGetPtr(&buffer, chunkcomplen);
   SegRead (grhandle,buffer,chunkcomplen);
-  HuffExpand ((unsigned char huge *)buffer, (unsigned char huge *)pictable,
+  HuffExpand ((unsigned char *)buffer, (unsigned char *)pictable,
     sizeof(pictable),grhuffman);
   MMFreePtr(&buffer);
 #endif
@@ -435,7 +447,7 @@ void InitGrFile (void)
   GetChunkLength(STRUCTPICM);           // position file pointer
   MMGetPtr(&buffer, chunkcomplen);
   SegRead (grhandle,buffer,chunkcomplen);
-  HuffExpand (buffer, (unsigned char huge *)picmtable,
+  HuffExpand (buffer, (unsigned char *)picmtable,
     sizeof(picmtable),grhuffman);
   MMFreePtr(&buffer);
 #endif
@@ -472,6 +484,26 @@ void InitGrFile (void)
 #define BLOCK           32
 #define MASKBLOCK       40
 
+void ExpandGrChunk(int chunk)
+{
+	if (grsegs[chunk])
+	{
+		return;
+	}
+
+	int expanded = GetChunkLength(chunk);
+	int compressed = grstarts[chunk+1]-grstarts[chunk]-4;
+
+	memptr bigbufferseg;          // for compressed
+
+	MMGetPtr(&grsegs[chunk],expanded);
+	MMGetPtr(&bigbufferseg,compressed);
+	fread(bigbufferseg,1,compressed,grhandle);
+	HuffExpand ((unsigned char*)bigbufferseg, (unsigned char*)grsegs[chunk], expanded,grhuffman);
+	MMValidatePtr(&grsegs[chunk]);
+	MMFreePtr(&bigbufferseg);
+}
+
 void CacheGrFile (void)
 {
   int i;
@@ -491,7 +523,7 @@ void CacheGrFile (void)
 //
 // load new stuff
 //
-  lseek(grhandle,0,SEEK_SET);
+  fseek(grhandle,0,SEEK_SET);
   filepos = 0;
 
   for (i=0;i<NUMCHUNKS;i++)
@@ -499,7 +531,7 @@ void CacheGrFile (void)
     {
       newpos = grstarts[i];
       if (newpos!=filepos)
-	lseek(grhandle,newpos-filepos,SEEK_CUR);
+	fseek(grhandle,newpos-filepos,SEEK_CUR);
 
       compressed = grstarts[i+1]-grstarts[i]-4;
 
@@ -528,7 +560,7 @@ void CacheGrFile (void)
 		//
       // other things have a length header at start of chunk
       //
-	read(grhandle,&expanded,sizeof(expanded));
+	fread(&expanded,1,sizeof(expanded),grhandle);
 	compressed = grstarts[i+1]-grstarts[i]-4;
       }
 
@@ -544,13 +576,13 @@ void CacheGrFile (void)
       if (compressed<=BUFFERSIZE)
       {
 	SegRead(grhandle,bufferseg,compressed);
-	HuffExpand (bufferseg, grsegs[i], expanded,grhuffman);
+	HuffExpand ((unsigned char*)bufferseg, (unsigned char*)grsegs[i], expanded,grhuffman);
       }
       else
       {
 	MMGetPtr(&bigbufferseg,compressed);
 	SegRead(grhandle,bigbufferseg,compressed);
-	HuffExpand (bigbufferseg, grsegs[i], expanded,grhuffman);
+	HuffExpand ((unsigned char*)bigbufferseg, (unsigned char*)grsegs[i], expanded,grhuffman);
 	MMFreePtr(&bigbufferseg);
       }
 
@@ -574,63 +606,162 @@ void CacheGrFile (void)
 
 void CachePic (int picnum)
 {
-  long expanded,compressed;     // chunk lengths
-  memptr bigbufferseg;          // for compressed
+	long expanded,compressed;     // chunk lengths
+	memptr bigbufferseg;          // for compressed
 
-  if (grsegs[picnum])
-    return;
+	if (grsegs[picnum])
+		return;
 
-  lseek(grhandle,grstarts[picnum],SEEK_SET);
+	fseek(grhandle,grstarts[picnum],SEEK_SET);
 
-  compressed = grstarts[picnum+1]-grstarts[picnum]-4;
+	compressed = grstarts[picnum+1]-grstarts[picnum]-4;
 
-  if (picnum>=STARTTILE8)
-  {
-  //
-  // tiles are of a known size
-  //
-    if (picnum<STARTTILE8M)             // tile 8s are all in one chunk!
-      expanded = BLOCK*NUMTILE8;
-    else if (picnum<STARTTILE16)
-      expanded = MASKBLOCK*NUMTILE8M;
-    else if (picnum<STARTTILE16M)       // all other tiles are one/chunk
-      expanded = BLOCK*4;
-	 else if (picnum<STARTTILE32)
-      expanded = MASKBLOCK*4;
-    else if (picnum<STARTTILE32M)
-      expanded = BLOCK*16;
-    else
-      expanded = MASKBLOCK*16;
+	int width,height;
 
-    compressed = grstarts[picnum+1]-grstarts[picnum];
-  }
-  else
-  {
-  //
-  // other things have a length header at start of chunk
-  //
-    read(grhandle,&expanded,sizeof(expanded));
-    compressed = grstarts[picnum+1]-grstarts[picnum]-4;
-  }
+	if (picnum>=STARTTILE8)
+	{
+	//
+	// tiles are of a known size
+	//
+		int numtiles = 0;
+		int tilesize = 0;
+		if (picnum<STARTTILE8M)             // tile 8s are all in one chunk!
+		{
+			numtiles = NUMTILE8;
+			tilesize = BLOCK;
+			width = 1;
+			height = 8;
+		}
+		else if (picnum<STARTTILE16)
+		{
+			numtiles = NUMTILE8M;
+			tilesize = MASKBLOCK;
+			assert(0);
+		}
+		else if (picnum<STARTTILE16M)       // all other tiles are one/chunk
+		{
+			numtiles = 4;
+			tilesize = BLOCK;
+			assert(0);
+		}
+		else if (picnum<STARTTILE32)
+		{
+			numtiles = 4;
+			tilesize = MASKBLOCK;
+			assert(0);
+		}
+		else if (picnum<STARTTILE32M)
+		{
+			numtiles = 16;
+			tilesize = BLOCK;
+			assert(0);
+		}
+		else
+		{
+			numtiles = 16;
+			tilesize = MASKBLOCK;
+			assert(0);
+		}
 
-  //
-  // allocate space for expanded chunk
-  //
-  MMGetPtr(&grsegs[picnum],expanded);
+		expanded = numtiles * tilesize;
 
-  MMGetPtr(&bigbufferseg,compressed);
-  SegRead(grhandle,bigbufferseg,compressed);
-  HuffExpand (bigbufferseg, grsegs[picnum], expanded,grhuffman);
-  MMFreePtr(&bigbufferseg);
+		compressed = grstarts[picnum+1]-grstarts[picnum];
+		if (compressed < 0 || compressed > expanded)
+		{
+			compressed = expanded;
+		}
+		//
+		// allocate space for expanded chunk
+		//
+		memptr planes;
+		MMGetPtr(&planes,expanded);
+		MMGetPtr(&bigbufferseg,compressed);
+		fread(bigbufferseg,1,compressed,grhandle);
+		HuffExpand ((unsigned char*)bigbufferseg, (unsigned char*)planes, expanded,grhuffman);
+
+		memptr *tiles;
+		MMGetPtr((memptr*)&tiles, numtiles*sizeof(memptr*));
+		for (int i = 0; i < numtiles; i++)
+		{
+			tiles[i] = CreateTexture(width,height,(char*)planes+i*tilesize, 5);
+		}
+		grsegs[picnum] = tiles;
+		MMValidatePtr((memptr*)&tiles);
+
+		MMFreePtr(&bigbufferseg);
+		MMFreePtr(&planes);
+		return;
+	}
+	else
+	{
+	//
+	// other things have a length header at start of chunk
+	//
+		fread(&expanded,1,sizeof(expanded),grhandle);
+		compressed = grstarts[picnum+1]-grstarts[picnum]-4;
+		width = pictable[picnum-STARTPICS].width;
+		height = pictable[picnum-STARTPICS].height;
+	}
+
+	assert(width*height*4 == expanded);
+	//
+	// allocate space for expanded chunk
+	//
+	memptr planes;
+	MMGetPtr(&planes,expanded);
+	MMGetPtr(&bigbufferseg,compressed);
+	fread(bigbufferseg,1,compressed,grhandle);
+	HuffExpand ((unsigned char*)bigbufferseg, (unsigned char*)planes, expanded,grhuffman);
+	grsegs[picnum] = CreateTexture(width,height,planes, 5);
+	MMValidatePtr(&grsegs[picnum]);
+	MMFreePtr(&bigbufferseg);
+	MMFreePtr(&planes);
 }
 
-//==========================================================================
-
-void PatchPointers (void)
+#if 0
+void TestSave(int picnum)
 {
-  fontseg = grsegs[STARTFONT];
+	memptr src = grsegs[STARTPICS+picnum];
+	int plane_width = pictable[picnum].width;
+	int width = plane_width*8;
+	int height = pictable[picnum].height;
+	int size = width * height;
 
+	unsigned char *data;
+	MMGetPtr((memptr*)&data,size);	// larger than needed buffer
+	memset(data,0,size);
+
+	unsigned char *plane = (unsigned char*)src;
+
+	for (int p = 0; p < 4; p++)
+	{
+		for (int y = 0; y < height; y++)
+		{
+			for (int x = 0; x < plane_width; x++)
+			{
+				int offset = y*width + x*8;
+				data[offset + 0] |= (((*plane)>>7)&1) << p;
+				data[offset + 1] |= (((*plane)>>6)&1) << p;
+				data[offset + 2] |= (((*plane)>>5)&1) << p;
+				data[offset + 3] |= (((*plane)>>4)&1) << p;
+				data[offset + 4] |= (((*plane)>>3)&1) << p;
+				data[offset + 5] |= (((*plane)>>2)&1) << p;
+				data[offset + 6] |= (((*plane)>>1)&1) << p;
+				data[offset + 7] |= (((*plane)>>0)&1) << p;
+				plane++;
+			}
+		}
+	}
+
+	FILE *f = fopen("_test.raw","wb");
+	fwrite(data, 1, size, f);
+	fclose(f);
+
+	MMFreePtr((memptr*)&data);
 }
+#endif
+
+
 
 //==========================================================================
 
@@ -652,22 +783,26 @@ void Quit (char *error)
   }
 
   MMShutdown();
+#if 0
   if (KBDstarted)
 	 ShutdownKbd ();        // shut down the interrupt driven stuff if needed
   if (SNDstarted)
 	 ShutdownSound ();
+#endif
   if (soundblaster)
 	 jmShutSB ();
 
   if (grhandle>0)
-	 close(grhandle);
+	 fclose(grhandle);
   if (levelhandle>0)
-	 close(levelhandle);
+	 fclose(levelhandle);
   if (soundhandle>0)
-	 close(soundhandle);
+	 fclose(soundhandle);
 
+#if 0
   _AX = 3;
   geninterrupt (0x10);  // text mode
+#endif
 
   if (!(*error))
   {
@@ -713,7 +848,7 @@ void Quit (char *error)
 
 void LoadLevel(void)
 {
-  unsigned far *planeptr;
+  unsigned short *planeptr;
   int loop,x,y,i,j;
   unsigned length;
   char filename[30];
@@ -740,23 +875,23 @@ void LoadLevel(void)
 
   BloadinMM(filename,&bufferseg);
 
-  length = *(unsigned _seg *)bufferseg;
+  length = *(unsigned short*)bufferseg;
 
   if (levelseg)
     MMFreePtr (&levelseg);
 
   MMGetPtr (&levelseg,length);
 
-  RLEWExpand ((unsigned far *)bufferseg,(unsigned far *)levelseg);
+  RLEWExpand ((unsigned short *)bufferseg,(unsigned short *)levelseg);
 
   MMFreePtr (&bufferseg);
 
-  levelheader = (LevelDef far *)levelseg;
+  levelheader = (LevelDef *)levelseg;
 
 //
 // copy plane 0 to tilemap
 //
-  planeptr= (unsigned far *)((char _seg *)levelseg+32);
+  planeptr= (unsigned short *)((char *)levelseg+32);
   for (y=0;y<levelheader->height;y++)
     for (x=0;x<levelheader->width;x++)
       tilemap[x][y]=*planeptr++;
@@ -765,7 +900,7 @@ void LoadLevel(void)
 //
 // spawn tanks
 //
-  planeptr= (unsigned far *)((char _seg *)levelseg+32+levelheader->planesize);
+  planeptr= (unsigned short *)((char *)levelseg+32+levelheader->planesize);
   StartLevel (planeptr);
 
   MMFreePtr (&levelseg);
@@ -794,13 +929,13 @@ void CacheDrawPic(int picnum)
   SetLineWidth(80);
   screenofs = 0;
 
-  EGAWRITEMODE(0);
+//EGAWRITEMODE(0);
   DrawPic (0,0,picnum);
 
-  EGAWRITEMODE(1);
-  EGAMAPMASK(15);
+//EGAWRITEMODE(1);
+//EGAMAPMASK(15);
   CopyEGA(80,200,0,0x4000);
-  EGAWRITEMODE(0);
+//EGAWRITEMODE(0);
 
   MMSetPurge (&grsegs[STARTPICS+picnum],3);
 
@@ -809,6 +944,7 @@ void CacheDrawPic(int picnum)
 
 //==========================================================================
 
+#if 0
 int SoundPlaying (void)
 {
   if (soundblaster)
@@ -816,6 +952,7 @@ int SoundPlaying (void)
   else
     return sndptr;
 }
+#endif
 
 #if 0
 
@@ -843,6 +980,7 @@ void PlaySound (int num)
 //==========================================================================
 
 
+
 /*
 =====================
 =
@@ -859,49 +997,53 @@ void Intro (void)
   float x,y,z,angle,step,sn,cs,maxz,sizescale,maxy,coordscale,scale;
   float ytop,xmid,minz,worldycenter,worldxcenter;
 
-  FadeOut();
+	FadeOut();
 
-  SetLineWidth(SCREENWIDTH);
+	SetLineWidth(SCREENWIDTH);
 
-  screenofs=0;
+	screenofs=0;
 
-  CacheDrawPic (STARSPIC);
-  pxl=0;
-  pxh=320;
-  py=180;
+	CacheDrawPic (STARSPIC);
+	pxl=0;
+	pxh=320;
+	py=180;
 #ifndef CATALOG
-  CPPrint ("Copyright (c) 1991-93 Softdisk Publishing\n");
-//  CPPrint ("'I' for information");
+	CPPrint ("Copyright (c) 1991-93 Softdisk Publishing\n");
+//	  CPPrint ("'I' for information");
 #endif
-  EGAWRITEMODE(1);
-  EGAMAPMASK(15);
-  CopyEGA(40,200,0,0x4000);
-  CopyEGA(40,200,0,0x8000);
-  CopyEGA(40,200,0,0xc000);
-  StopDrive();
+	//EGAWRITEMODE(1);
+	//EGAMAPMASK(15);
+#if 0
+	CopyEGA(40,200,0,0x4000);
+	CopyEGA(40,200,0,0x8000);
+	CopyEGA(40,200,0,0xc000);
+#endif
+	StopDrive();
 
-  CachePic (STARTPICS+LOGOPIC);
+	CachePic (STARTPICS+LOGOPIC);
 
+#if 0
   SC_MakeShape(
     grsegs[STARTPICS+LOGOPIC],
     0,
     0,
     &shapeseg);
 
-// SC_MakeShape(
-//    grsegs[STARTPICS+LOGOPIC],
-//    pictable[LOGOPIC].width,
-//    pictable[LOGOPIC].height,
-//    &shapeseg);
+//	SC_MakeShape(
+//		grsegs[STARTPICS+LOGOPIC],
+//		pictable[LOGOPIC].width,
+//		pictable[LOGOPIC].height,
+//		&shapeseg);
 
-  MMFreePtr(&grsegs[STARTPICS+LOGOPIC]);
+  //MMFreePtr(&grsegs[STARTPICS+LOGOPIC]);
+#endif
 
 
-  FadeIn();
-  sx=160;
-  sy=180;
+	FadeIn();
+	sx=160;
+	sy=180;
 
-//  memset (zbuffer,0,sizeof(zbuffer));
+//	memset (zbuffer,0,sizeof(zbuffer));
 
 /*
 =============================================================================
@@ -912,46 +1054,51 @@ void Intro (void)
 */
 
 #define PICHEIGHT       64      // full size height of scaled pic
-#define NUMFRAMES       300.0
-#define MAXANGLE        (3.141592657*0.6)       // go from 0 to this in numframes
-#define RADIUS          1000.0  // world coordinates
-#define DISTANCE        1000.0  // center point z distance
+#define NUMFRAMES       300.0f
+#define MAXANGLE        (3.141592657f*0.6f)       // go from 0 to this in numframes
+#define RADIUS          1000.0f  // world coordinates
+#define DISTANCE        1000.0f  // center point z distance
 
-  minz = cos(MAXANGLE)*RADIUS;  // closest point
-  minz += DISTANCE;
-  sizescale = 256*minz;         // closest point will be full size
-  ytop = 80 - (PICHEIGHT/2)*(sizescale/DISTANCE)/256;
-  z = sizescale/(DISTANCE*256);
-  ytop = ytop/z;        // world coordinates
-  worldycenter=ytop-RADIUS;
-  xmid=sin(MAXANGLE)*RADIUS/2;
-  worldxcenter=-xmid;
+#if 0
+	minz = cosf(MAXANGLE)*RADIUS;  // closest point
+	minz += DISTANCE;
+	sizescale = 256*minz;         // closest point will be full size
+	ytop = 80 - (PICHEIGHT/2)*(sizescale/DISTANCE)/256;
+	z = sizescale/(DISTANCE*256);
+	ytop = ytop/z;        // world coordinates
+	worldycenter=ytop-RADIUS;
+	xmid=sinf(MAXANGLE)*RADIUS/2;
+	worldxcenter=-xmid;
+#endif
 
-  f=1;
-  page = inttime = screenofs = pagewidth[0] = pagewidth[1] = 0;
-  do
-  {
-	 step = f/NUMFRAMES;
-	 angle=MAXANGLE*step;
-	 sn=sin(angle);
-	 cs=cos(angle);
-	 x=worldxcenter+sn*RADIUS/2;
-	 y=worldycenter+sn*RADIUS;
-	 z=DISTANCE+cs*RADIUS;
-	 scale = sizescale/z;
-	 sx=160+ (int)(x*scale/256);
-	 sy=100- (int)(y*scale/256);
+	f=1;
+	page = inttime = screenofs = pagewidth[0] = pagewidth[1] = 0;
+	do
+	{
+		step = f/NUMFRAMES;
+		angle=MAXANGLE*step;
+		sn=sin(angle);
+#if 0
+		cs=cos(angle);
+		x=worldxcenter+sn*RADIUS/2;
+		y=worldycenter+sn*RADIUS;
+		z=DISTANCE+cs*RADIUS;
+		scale = sizescale/z;
+		sx=160+ (int)(x*scale/256);
+		sy=100- (int)(y*scale/256);
+#endif
 
-	 inttime=0;
-	 sound((int)(sn*1500));
+		inttime=0;
+		sound((int)(sn*1500));
 
+#if 0
 //
 // erase old position
 //
 	 if (pagewidth[page])
 	 {
-		EGAWRITEMODE(1);
-		EGAMAPMASK(15);
+		//EGAWRITEMODE(1);
+		//EGAMAPMASK(15);
 		CopyEGA(pagewidth[page],pageheight[page],
 		pageptr[page]+0x8000,pageptr[page]);
 	 }
@@ -959,7 +1106,7 @@ void Intro (void)
 //
 // draw new position
 //
-	 EGAWRITEMODE(2);
+	 //EGAWRITEMODE(2);
 	 if (SC_ScaleShape(sx,sy,(int)scale<40 ? 10 : scale/4,shapeseg))
 	 {
 		pagewidth[page]=scaleblockwidth;
@@ -969,31 +1116,34 @@ void Intro (void)
 	 else
 		pagewidth[page]=0;
 
-	 EGAWRITEMODE(0);
-	 EGABITMASK(255);
+	 //EGAWRITEMODE(0);
+	 //EGABITMASK(255);
 
 //
 // display it
 //
+#endif
 	 SetScreen(screenofs,0);
 
+#if 0
 	 page^=1;
 	 screenofs = 0x4000*page;
+#endif
 
-	 f++;
+		f++;
 
-	 if (f<NUMFRAMES)
-	 {
-		f+=inttime;
-		if (f>NUMFRAMES)
-	f=NUMFRAMES;
-	 }
-	 else
-	  f++;  // last frame is shown
+		if (f<NUMFRAMES)
+		{
+			f+=inttime;
+			if (f>NUMFRAMES)
+				f=NUMFRAMES;
+		}
+		else
+			f++;  // last frame is shown
 
 	 if (NBKscan>0x7f)
 		break;
-  } while (f<=NUMFRAMES);
+	} while (f<=NUMFRAMES);
   nosound();
 
   for (i=0;i<200;i++)
@@ -1024,7 +1174,9 @@ void Intro (void)
 	 }
   }
 
-  MMFreePtr(&shapeseg);
+#if 0
+	SC_FreeShape(shapeseg);
+#endif
 }
 
 //==========================================================================
@@ -1071,8 +1223,8 @@ void DemoLoop (void)
     screenofs = originx/8;
     if (CheckKeys())
     {
-      EGAWRITEMODE(1);
-      EGAMAPMASK(15);
+//      EGAWRITEMODE(1);
+//      EGAMAPMASK(15);
       CopyEGA(80,200,0x4000,0);
     }
     c=ControlPlayer(1);
@@ -1101,6 +1253,16 @@ void SetupGraphics (void)
 
   InitGrFile ();        // load the graphic file header
 
+	CachePic(STARTTILE8);
+
+	for (int i = 0; i < NUMPICS; i++)
+	{
+		CachePic(i+STARTPICS);
+	}
+
+	ExpandGrChunk(STARTFONT);
+	CreateFont();
+
 //
 // go through the pics and make scalable shapes, the discard the pic
 //
@@ -1112,23 +1274,27 @@ void SetupGraphics (void)
       pictable[i].width,
       pictable[i].height,
       &scalesegs[i]);
-    MMFreePtr (&grsegs[STARTPICS+i]);
+    //MMFreePtr (&grsegs[STARTPICS+i]);
   }
 
 //
 // load the basic graphics
 //
 
-  needgr[STARTFONT] = 1;
-  needgr[STARTTILE8] = 1;
+	needgr[STARTFONT] = 1;
+	needgr[STARTTILE8] = 1;
 
-  for (i=DASHPIC;i<ENDPIC;i++)
-    needgr[STARTPICS+i]=1;
+	for (i=DASHPIC;i<ENDPIC;i++)
+		needgr[STARTPICS+i]=1;
 
-  CacheGrFile ();       // load all graphics now (no caching)
+#if 0
+	CacheGrFile ();       // load all graphics now (no caching)
 
-  fontseg = grsegs[STARTFONT];
+	fontseg = (fontstruct*)grsegs[STARTFONT];
+#endif
 }
+
+//==========================================================================
 
 //==========================================================================
 
@@ -1138,6 +1304,7 @@ void SetupGraphics (void)
 //
 //////////////////////////////////////////////////////
 
+#if 0
 #define IGNORE  0
 #define RETRY   1
 #define ABORT   2
@@ -1175,6 +1342,7 @@ int ErrorHandler(int errval,int ax,int bx,int si)
 
   return ABORT;
 }
+#endif
 
 
 
@@ -1185,23 +1353,25 @@ int ErrorHandler(int errval,int ax,int bx,int si)
 // Allocate memory and load file in
 //
 ////////////////////////////////////////////////////////////
-void LoadIn(char *filename,char huge **baseptr)
+void LoadIn(char *filename,char **baseptr)
 {
- int handle;
+ FILE *handle;
  long len;
  unsigned datapage;
 
 
- if ((handle=open(filename,O_BINARY))==-1)
+ if (!(handle=fopen(filename,"rb")))
    {
 	printf("Error loading file '%s'!\n",filename);
 	exit(1);
    }
 
  len=filelength(handle);
- *baseptr=(char huge *)farmalloc(len);
+ *baseptr=(char *)malloc(len);
 
- LoadFile(filename,*baseptr);
+ fread(*baseptr,1,len,handle);
+ fclose(handle);
+ //LoadFile(filename,*baseptr);
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -1251,16 +1421,18 @@ US_CheckParm(char *parm,char **strings)
 static  char                    *EntryParmStrings[] = {"detour",0};
 static  char                    *SBlasterStrings[] = {"NOBLASTER",0};
 
-void main(void)
+int main(int argc, char **argv)
 {
   int i,x,xl,xh,y,plane,size;
-  SampledSound huge *samples;
+  SampledSound *samples;
+
+	_chdir("data");
 
 	boolean LaunchedFromShell = false;
 
-	textbackground(0);
-	textcolor(7);
-	if (stricmp(_argv[1], "/VER") == 0)
+//	textbackground(0);
+//	textcolor(7);
+	if (argc > 1 && stricmp(argv[1], "/VER") == 0)
 	{
 		printf("HOVERTANK 3-D\n");
 		printf("Copyright 1991-93 Softdisk Publishing\n");
@@ -1268,9 +1440,9 @@ void main(void)
 		exit(0);
 	}
 
-	for (i = 1;i < _argc;i++)
+	for (i = 1;i < argc;i++)
 	{
-		switch (US_CheckParm(_argv[i],EntryParmStrings))
+		switch (US_CheckParm(argv[i],EntryParmStrings))
 		{
 		case 0:
 			LaunchedFromShell = true;
@@ -1280,7 +1452,7 @@ void main(void)
 #ifndef CATALOG
 	if (!LaunchedFromShell)
 	{
-		clrscr();
+		//clrscr();
 		puts("You must type START at the DOS prompt to run HOVERTANK 3-D.");
 		exit(0);
 	}
@@ -1288,6 +1460,10 @@ void main(void)
 
 //  puts("HoverTank 3-D is executing...");
 
+
+	IDLIBC_SDL_Init();
+
+#if 0
 //
 // detect video
 //
@@ -1309,14 +1485,15 @@ void main(void)
   }
 
   grmode = EGAgr;
+#endif
 
 //
 // setup for sound blaster
 //
 	soundblaster = 1;
-	for (i = 1;i < _argc;i++)
+	for (i = 1;i < argc;i++)
 	{
-		switch (US_CheckParm(_argv[i],SBlasterStrings))
+		switch (US_CheckParm(argv[i],SBlasterStrings))
 		{
 		case 0:
 			soundblaster = 0;
@@ -1341,13 +1518,12 @@ void main(void)
   if (soundblaster)
   {
 //       puts ("Sound Blaster detected! (HOVER NOBLASTER to void detection)");
-	 LoadIn ("DSOUND.HOV",&(char huge *)samples);
+	 LoadIn ("DSOUND.HOV",(char**)&samples);
 	 jmStartSB ();
 	 jmSetSamplePtr (samples);
   }
 //  else
 //       puts ("Sound Blaster not detected");
-
 
   LoadNearData ();      // load some stuff before starting the memory manager
 
@@ -1355,38 +1531,45 @@ void main(void)
   MMGetPtr(&bufferseg,BUFFERSIZE);      // small general purpose buffer
 
   BloadinMM ("SOUNDS."EXTENSION,&soundseg);
+  assert(sizeof(spksndtype) == 16);
+  spksndtype * sounds = (spksndtype*)soundseg;
 
-  harderr(ErrorHandler);        // critical error handler
+  for (int i = 0; i < 20; i++)
+  {
+	  SDL_Log(sounds[i+1].name);
+  }
+
+//  harderr(ErrorHandler);        // critical error handler
+
+	//StartupKbd ();
+	//KBDstarted = 1;
 
 #ifdef ADAPTIVE
-  timerspeed = 0x2147;  // 140 ints / second (2/VBL)
-  StartupSound ();      // interrupt handlers that must be removed at quit
+//  timerspeed = 0x2147;  // 140 ints / second (2/VBL)
+//  StartupSound ();      // interrupt handlers that must be removed at quit
   SNDstarted = 1;
 #endif
 
-  StartupKbd ();
-  KBDstarted = 1;
+	SetupGraphics ();
 
-  SetupGraphics ();
+	InitRndT (1);         // setup random routines
+	InitRnd (1);
 
-  InitRndT (1);         // setup random routines
-  InitRnd (1);
+	LoadCtrls ();
 
-  LoadCtrls ();
+//	puts ("Calculating...");
+	BuildTables();
+	SC_Setup();
 
-//  puts ("Calculating...");
-  BuildTables();
-  SC_Setup();
+//	SetScreenMode(grmode);
+	SetLineWidth (SCREENWIDTH);
 
-  SetScreenMode(grmode);
-  SetLineWidth (SCREENWIDTH);
-
-  screencenterx=19;
-  screencentery=12;
+	screencenterx=19;
+	screencentery=12;
 
 #if !(defined (PROFILE) || defined (TESTCASE))
-  if (!keydown[1])              // hold ESC to bypass intro
-	 Intro ();
+	if (!keydown[1])              // hold ESC to bypass intro
+		Intro ();
 #endif
 
 #ifdef PROFILE
@@ -1395,14 +1578,15 @@ JoyXhigh[1]=JoyYhigh[1]=70;
 playermode[1] = joystick1;
 #endif
 
-  while (1)
-  {
+	while (1)
+	{
 #if !(defined (PROFILE) || defined (TESTCASE))
-    DemoLoop ();                // do title, demo, etc
+		DemoLoop ();                // do title, demo, etc
 #endif
-    PlaySound (STARTGAMESND);
-    PlayGame();
-  }
+		PlaySound (STARTGAMESND);
+		PlayGame();
+	}
 
+	return 0;
 }
 

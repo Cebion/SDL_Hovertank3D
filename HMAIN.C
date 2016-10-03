@@ -422,7 +422,7 @@ void InitGrFile (void)
   GetChunkLength(STRUCTPIC);		// position file pointer
   MMGetPtr(&buffer, chunkcomplen);
   SegRead (grhandle,buffer,chunkcomplen);
-  HuffExpand ((unsigned char huge *)buffer, (unsigned char huge *)pictable,
+  HuffExpand ((unsigned char *)buffer, (unsigned char *)pictable,
     sizeof(pictable),grhuffman);
   MMFreePtr(&buffer);
 #endif
@@ -433,7 +433,7 @@ void InitGrFile (void)
   GetChunkLength(STRUCTPICM);		// position file pointer
   MMGetPtr(&buffer, chunkcomplen);
   SegRead (grhandle,buffer,chunkcomplen);
-  HuffExpand (buffer, (unsigned char huge *)picmtable,
+  HuffExpand (buffer, (unsigned char *)picmtable,
     sizeof(picmtable),grhuffman);
   MMFreePtr(&buffer);
 #endif
@@ -444,7 +444,7 @@ void InitGrFile (void)
   GetChunkLength(STRUCTSPRITE);	// position file pointer
   MMGetPtr(&buffer, chunkcomplen);
   SegRead (grhandle,buffer,chunkcomplen);
-  HuffExpand (buffer, (unsigned char huge *)spritetable,
+  HuffExpand (buffer, (unsigned char *)spritetable,
     sizeof(spritetable),grhuffman);
   MMFreePtr(&buffer);
 #endif
@@ -708,7 +708,7 @@ void Quit (char *error)
 
 void LoadLevel(void)
 {
-  unsigned far *planeptr;
+  unsigned *planeptr;
   int loop,x,y,i,j;
   unsigned length;
   char filename[30];
@@ -735,23 +735,23 @@ void LoadLevel(void)
 
   BloadinMM(filename,&bufferseg);
 
-  length = *(unsigned _seg *)bufferseg;
+  length = *(unsigned *)bufferseg;
 
   if (levelseg)
     MMFreePtr (&levelseg);
 
   MMGetPtr (&levelseg,length);
 
-  RLEWExpand ((unsigned far *)bufferseg,(unsigned far *)levelseg);
+  RLEWExpand ((unsigned *)bufferseg,(unsigned *)levelseg);
 
   MMFreePtr (&bufferseg);
 
-  levelheader = (LevelDef far *)levelseg;
+  levelheader = (LevelDef *)levelseg;
 
 //
 // copy plane 0 to tilemap
 //
-  planeptr= (unsigned far *)((char _seg *)levelseg+32);
+  planeptr= (unsigned *)((char *)levelseg+32);
   for (y=0;y<levelheader->height;y++)
     for (x=0;x<levelheader->width;x++)
       tilemap[x][y]=*planeptr++;
@@ -760,7 +760,7 @@ void LoadLevel(void)
 //
 // spawn tanks
 //
-  planeptr= (unsigned far *)((char _seg *)levelseg+32+levelheader->planesize);
+  planeptr= (unsigned *)((char *)levelseg+32+levelheader->planesize);
   StartLevel (planeptr);
 
   MMFreePtr (&levelseg);
@@ -1169,7 +1169,7 @@ int ErrorHandler(int errval,int ax,int bx,int si)
 // Allocate memory and load file in
 //
 ////////////////////////////////////////////////////////////
-void LoadIn(char *filename,char huge **baseptr)
+void LoadIn(char *filename,char **baseptr)
 {
  int handle;
  long len;
@@ -1183,7 +1183,7 @@ void LoadIn(char *filename,char huge **baseptr)
    }
 
  len=filelength(handle);
- *baseptr=(char huge *)farmalloc(len);
+ *baseptr=(char *)farmalloc(len);
 
  LoadFile(filename,*baseptr);
 }
@@ -1237,7 +1237,7 @@ static	char			*EntryParmStrings[] = {"detour",0};
 void main(void)
 {
   int i,x,xl,xh,y,plane,size;
-  SampledSound huge *samples;
+  SampledSound *samples;
 
 	boolean LaunchedFromShell = false;
 
@@ -1301,7 +1301,7 @@ void main(void)
   if (soundblaster)
   {
 //	 puts ("Sound Blaster detected! (HOVER NOBLASTER to void detection)");
-	 LoadIn ("DSOUND.HOV",&(char huge *)samples);
+	 LoadIn ("DSOUND.HOV",&(char *)samples);
 	 jmStartSB ();
 	 jmSetSamplePtr (samples);
   }

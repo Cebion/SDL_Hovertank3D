@@ -1,3 +1,6 @@
+
+
+
 /* Hovertank 3-D Source Code
  * Copyright (C) 1993-2014 Flat Rock Software
  *
@@ -23,9 +26,7 @@
 
 =============================================================================
 */
-#include "JM_SB.H"
 #include "IDLIB.H"
-#include <MATH.H>
 
 //#define PROFILE
 
@@ -39,6 +40,20 @@
 #define MAXTICS	8
 
 #define NUMLEVELS	20
+
+
+typedef struct { short width;
+		 short height;
+		 short planes;
+		 short screenx;
+		 short screeny;
+		 short screenw;
+		 short screenh;
+		 unsigned short planesize;
+	       } LevelDef;
+
+LevelDef extern	*levelheader;
+
 
 /*
 =============================================================================
@@ -77,7 +92,7 @@
 // 15 bits units
 // 16 bits fractional
 //
-#define SIGNBIT	0x80000000l
+#define SIGNBIT	error//0x80000000l
 
 typedef long fixed;
 
@@ -116,6 +131,23 @@ typedef long fixed;
 extern int tedlevel;
 extern memptr scalesegs[NUMPICS];
 
+//==========================================================================
+
+int CheckKeys(void);
+void CachePic (int picnum);
+void LoadLevel(void);
+void CacheDrawPic(int picnum);
+int SoundPlaying (void);
+
+/*
+=============================================================================
+
+			     HOVDRAW
+
+=============================================================================
+*/
+
+void FollowWalls (void);
 
 /*
 =============================================================================
@@ -133,6 +165,7 @@ typedef struct
 {
   int	x1,x2,leftclip,rightclip;// first pixel of wall (may not be visable)
   unsigned	height1,height2,color;
+  int wx0,wz0,wx1,wz1;
 } walltype;
 
 #define MAXWALLS	100
@@ -144,6 +177,7 @@ typedef struct
 
 //==========================================================================
 
+#if 0
 extern	tilept	tile,lasttile,focal,left,mid,right;
 
 extern	globpt	edge,view;
@@ -173,10 +207,28 @@ extern	unsigned slideofs;
 extern	int zbuffer[VIEWXH+1];
 
 extern	walltype	walls[MAXWALLS],*leftwall,*rightwall;
+#else
+extern	tilept	tile,focal,right;
+
+extern	unsigned screenloc[3];
+
+extern	int screenpage,tics;
+
+extern	long lasttimecount;
+
+extern	fixed sintable[ANGLES+ANGLES/4],*costable;
+
+extern	fixed	viewx,viewy,viewsin,viewcos;			// the focal point
+
+extern	int zbuffer[VIEWXH+1];
+
+extern	walltype	walls[MAXWALLS],*rightwall;
+#endif
 
 
 //==========================================================================
 
+#if 0
 void	DrawLine (int xl, int xh, int y,int color);
 void	DrawWall (walltype *wallptr);
 void	TraceRay (unsigned angle);
@@ -184,6 +236,8 @@ fixed	FixedByFrac (fixed a, fixed b);
 fixed	FixedAdd (fixed a, fixed b);
 void	TransformPoint (fixed gx, fixed gy, int *screenx, unsigned *screenheight);
 fixed	TransformX (fixed gx, fixed gy);
+void StartView (void);
+void FinishView (void);
 int	FollowTrace (fixed tracex, fixed tracey, long deltax, long deltay, int max);
 void	ForwardTrace (void);
 int	FinishWall (void);
@@ -193,6 +247,16 @@ void	FollowWall (void);
 
 void	NewScene (void);
 void	BuildTables (void);
+#else
+
+fixed	FixedByFrac (fixed a, fixed b);
+void	TransformPoint (fixed gx, fixed gy, int *screenx, unsigned *screenheight);
+fixed	TransformX (fixed gx, fixed gy);
+void StartView (void);
+void FinishView (void);
+
+void	BuildTables (void);
+#endif
 
 
 /*
@@ -218,7 +282,7 @@ typedef enum
 typedef struct
 {
   int		active;
-  classtype	class;
+  classtype	_class;
   fixed 	x,y;
   fixed 	viewx,viewy;	// x,y in view coordinate space (NOT pixels!)
   int 		angle;
@@ -248,13 +312,22 @@ extern	fixed xmove,ymove;
 extern int godmode,singlestep,leveldone,resetgame;
 extern int numrefugees,totalrefugees,savedcount,killedcount;
 
-extern objtype objlist[MAXOBJECTS],obon,*new,*obj,*lastobj,*check;
+extern objtype objlist[MAXOBJECTS],obon,*_new,*obj,*lastobj,*check;
+
+void FindFreeObj (void);
+void CalcBoundsNew (void);
+
+void CalcBounds (void);
+void TransformObon (void);
 
 void PlayerThink (void);
 
 void PlayLoop (void);
 void PlayGame (void);
 
+void ClipMove (void);
+
+void StartLevel (unsigned short *plane1);
 
 /*
 =============================================================================
@@ -269,3 +342,22 @@ extern unsigned	scaleblockwidth,
 		scaleblockdest;
 
 int SC_ScaleShape (int x,int y,unsigned scale, memptr shape);
+void SC_Setup (void);
+void SC_MakeShape (memptr src,int width,int height, memptr *shapeseg);
+
+/*
+=============================================================================
+
+			     HOVACTS
+
+=============================================================================
+*/
+
+void DamagePlayer (void);
+void HealPlayer (void);
+void Thrust (void);
+void SpawnShield (fixed gx, fixed gy);
+
+
+
+// ===========================================================
