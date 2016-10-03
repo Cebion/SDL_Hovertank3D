@@ -260,7 +260,6 @@ int CheckKeys(void)
       else if (ch=='Y')
 	soundmode = 1;
       break;
-#if 0
     case 0x3d:                  // F3 = keyboard mode
       ClearKeys ();
       calibratekeys ();
@@ -269,7 +268,6 @@ int CheckKeys(void)
       ClearKeys ();
       CalibrateJoy (1);
       break;
-#endif
     case 0x3f:                  // F5 = reset game
       ClearKeys ();
       ExpWin (18,1);

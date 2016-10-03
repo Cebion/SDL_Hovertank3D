@@ -9,36 +9,70 @@ const float SAMPLESTEP = 1.f/SAMPLERATE;
 static void MyAudioCallback(void *userdata, Uint8 *stream, int len);
 
 SDL_Window * window;
-int surfaceWidth, surfaceHeight;
+int windowFullscreen;
+int windowWidth, windowHeight;
+int viewportX, viewportY, viewportWidth, viewportHeight;
 
 int processedevents = 0;
 
-int NBKscan,NBKascii;
-char keydown[128];
+int _NBKscan,_NBKascii;
+char _keydown[128];
 char key[8],keyB1,keyB2;
 long highscore;
 int level,bestlevel;
 
-#define DRAWCHAR(x,y,n) DrawChar(x,(y)*8,n)
+SDL_GameController * controller;
 
 memptr soundseg;
 
 void IDLIBC_GL_Init();
 
+#define ASPECT (320.f/240.f)
+
+#define WIN32_LEAN_AND_MEAN 1
+#include <Windows.h>
+
+void UpdateWindow()
+{
+	float aspect = windowWidth / (float)windowHeight;
+	if (aspect > ASPECT)
+	{
+		viewportWidth = windowHeight * 0.95f * ASPECT;
+		viewportHeight = windowHeight * 0.95f;
+	}
+	else
+	{
+		viewportWidth = windowWidth * 0.95f;
+		viewportHeight = windowWidth * 0.95f / ASPECT;
+	}
+	viewportX = (windowWidth - viewportWidth)/2;
+	viewportY = (windowHeight - viewportHeight)/2;
+}
+
 void IDLIBC_SDL_Init()
 {
 	SDL_Init(SDL_INIT_EVERYTHING);//SDL_INIT_VIDEO|SDL_INIT_GAMECONTROLLER);
 
-	int x = 0;
-	int y = 0;
+	int x = SDL_WINDOWPOS_UNDEFINED;
+	int y = SDL_WINDOWPOS_UNDEFINED;
 	int w = 1024;//960;//1280;
 	int h = 768;//720;
-	surfaceWidth = w;
-	surfaceHeight = h;
+	viewportX = 0;
+	viewportY = 0;
+	windowWidth = w;
+	windowHeight = h;
 
-	Uint32 flags = SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN;
+	Uint32 flags = SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE;
+#ifndef _DEBUG
+	flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
+	windowFullscreen = 1;
+#else
+	windowFullscreen = 0;
+#endif
 
-	window = SDL_CreateWindow("Hovertank", x, y, w, h, flags);
+	window = SDL_CreateWindow("SDL Hovertank", x, y, w, h, flags);
+	SDL_GetWindowSize(window, &windowWidth, &windowHeight);
+	UpdateWindow();
 
 	IDLIBC_GL_Init();
 
@@ -202,40 +236,105 @@ void ProcessEvent(SDL_Event * event)
 	case SDL_QUIT:
 		exit(0);
 		break;
+	case SDL_WINDOWEVENT:
+		switch (event->window.event) {
+		case SDL_WINDOWEVENT_SIZE_CHANGED:
+			windowWidth = event->window.data1;
+			windowHeight = event->window.data2;
+			UpdateWindow();
+			break;
+		}
 	case SDL_KEYDOWN:
-		NBKscan = translateKey(event->key.keysym.sym);
-		keydown[NBKscan] = 1;
-		if (event->key.keysym.mod & KMOD_SHIFT) NBKscan |= 0x80;
+		if (event->key.keysym.sym == SDLK_RETURN && event->key.keysym.mod & KMOD_ALT)
+		{
+			int flags = windowFullscreen? 0 : SDL_WINDOW_FULLSCREEN_DESKTOP;
+			if (SDL_SetWindowFullscreen(window, flags) == 0)
+			{
+				windowFullscreen = 1 - windowFullscreen;
+				UpdateWindow();
+			}
+			return;
+		}
+		_NBKscan = translateKey(event->key.keysym.sym);
+		_keydown[_NBKscan] = 1;
+		if (event->key.keysym.mod & KMOD_SHIFT)
+		{
+			_NBKscan |= 0x80;
+		}
 		if (event->key.keysym.sym >= SDLK_0 && event->key.keysym.sym <= SDLK_9)
 		{
-			NBKascii = '0' + (event->key.keysym.sym - SDLK_0);
+			_NBKascii = '0' + (event->key.keysym.sym - SDLK_0);
 		}
 		else if (event->key.keysym.sym >= SDLK_a && event->key.keysym.sym <= SDLK_z)
 		{
 			if (event->key.keysym.mod & KMOD_SHIFT)
 			{
-				NBKascii = 'A' + (event->key.keysym.sym - SDLK_a);
+				_NBKascii = 'A' + (event->key.keysym.sym - SDLK_a);
 			}
 			else
 			{
-				NBKascii = 'a' + (event->key.keysym.sym - SDLK_a);
+				_NBKascii = 'a' + (event->key.keysym.sym - SDLK_a);
 			}
 		}
 		else
 		{
 			switch (event->key.keysym.sym)
 			{
-			case SDLK_RETURN: NBKascii = '\r'; break;
-			case SDLK_BACKSPACE: NBKascii = 8; break;
-			case SDLK_DELETE: NBKascii = 127; break;
-			case SDLK_SPACE: NBKascii = ' '; break;
-			case SDLK_ESCAPE: NBKascii = 27; break;
+			case SDLK_RETURN: _NBKascii = '\r'; break;
+			case SDLK_BACKSPACE: _NBKascii = 8; break;
+			case SDLK_DELETE: _NBKascii = 127; break;
+			case SDLK_SPACE: _NBKascii = ' '; break;
+			case SDLK_ESCAPE: _NBKascii = 27; break;
 			}
 		}
 		break;
 	case SDL_KEYUP:
-		keydown[translateKey(event->key.keysym.sym)] = 0;
+		_keydown[translateKey(event->key.keysym.sym)] = 0;
 		break;
+	}
+}
+
+void CheckGamepad()
+{
+	if (controller && SDL_GameControllerGetAttached(controller))
+	{
+		return;
+	}
+
+	static int check = 0;
+	check++;
+	if (check < 30)
+	{
+		return;
+	}
+
+	check = 0;
+	int numJoysticks = SDL_NumJoysticks();
+	for (int i = 0; i < numJoysticks; ++i)
+	{
+		if (!SDL_IsGameController(i))
+		{
+			continue;
+		}
+		controller = SDL_GameControllerOpen(i);
+		if (controller)
+		{
+			break;
+		}
+	}
+}
+
+void ReadJoystick (int joynum,int *xcount,int *ycount)
+{
+	CheckGamepad();
+	*xcount = 501;
+	*ycount = 501;
+	if (controller)
+	{
+		int leftx = SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_LEFTX);
+		int lefty = SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_LEFTY);
+		*xcount = ((int)leftx+32768)*500/65536;
+		*ycount = ((int)lefty+32768)*500/65536;
 	}
 }
 
@@ -247,10 +346,37 @@ void IN_Poll()
 	}
 }
 
+// a lighter version for those spamming keydown, NBKscan, NBKascii
+void IN_PollSingle()
+{
+	SDL_Event event;
+	if (SDL_PollEvent(&event)) {
+		ProcessEvent(&event);
+	}
+}
+
+char * GetKeyDown(void)
+{
+	IN_PollSingle();
+	return _keydown;
+}
+
+int GetNBKscan(void)
+{
+	IN_PollSingle();
+	return _NBKscan;
+}
+
+int GetNBKascii(void)
+{
+	IN_PollSingle();
+	return _NBKascii;
+}
+
 void ClearKeys (void)
 {
-  NBKscan=NBKascii=0;
-  memset (keydown,0,sizeof(keydown));
+  _NBKscan=_NBKascii=0;
+  memset (_keydown,0,sizeof(_keydown));
 }
 
 
@@ -281,7 +407,7 @@ int NoBiosKey(int x)
 			ProcessEvent(&event);
 			if (event.type == SDL_KEYDOWN)
 			{
-				return (NBKscan<<8)|NBKascii;
+				return (_NBKscan<<8)|_NBKascii;
 			}
 		}
 		return 0;
@@ -298,7 +424,7 @@ int NoBiosKey(int x)
 			break;
 		}
 	}
-	return (NBKscan<<8)|NBKascii;
+	return (_NBKscan<<8)|_NBKascii;
 }
 
 void WaitVBL(int num)
@@ -374,43 +500,250 @@ void SaveCtrls (void)
   fclose(handle);
 }
 
+//=========================================================================
+
+/*
+===========================
+=
+= ControlKBD
+=
+===========================
+*/
+
+ControlStruct ControlKBD ()
+{
+ int xmove=0,
+     ymove=0;
+ ControlStruct action;
+
+ IN_Poll();
+
+ if (_keydown [key[north]])
+  ymove=-1;
+ if (_keydown [key[east]])
+  xmove=1;
+ if (_keydown [key[south]])
+  ymove=1;
+ if (_keydown [key[west]])
+  xmove=-1;
+
+ if (_keydown [key[northeast]])
+ {
+   ymove=-1;
+   xmove=1;
+ }
+ if (_keydown [key[northwest]])
+ {
+   ymove=-1;
+   xmove=-1;
+ }
+ if (_keydown [key[southeast]])
+ {
+   ymove=1;
+   xmove=1;
+ }
+ if (_keydown [key[southwest]])
+ {
+   ymove=1;
+   xmove=-1;
+ }
+
+  switch (ymove*3+xmove)
+ {
+   case -4: action.dir = northwest; break;
+   case -3: action.dir = north; break;
+   case -2: action.dir = northeast; break;
+   case -1: action.dir = west; break;
+   case  0: action.dir = nodir; break;
+   case  1: action.dir = east; break;
+   case  2: action.dir = southwest; break;
+   case  3: action.dir = south; break;
+   case  4: action.dir = southeast; break;
+ }
+
+ action.button1 = _keydown [keyB1];
+ action.button2 = _keydown [keyB2];
+
+ return (action);
+}
+
+/*
+=============================
+=
+= ControlJoystick (joy# = 1 / 2)
+=
+=============================
+*/
+
+extern int JoyXlow [3], JoyXhigh [3], JoyYlow [3], JoyYhigh [3], buttonflip;
+
+ControlStruct ControlJoystick (int joynum)
+{
+ int joyx = 0,joyy = 0,		/* resistance in joystick */
+     xmove = 0,
+     ymove = 0,
+     buttons;
+ ControlStruct action;
+
+ IN_Poll();
+ CheckGamepad();
+
+ ReadJoystick (joynum,&joyx,&joyy);
+ if ( (joyx>500) | (joyy>500) )
+ {
+   joyx=JoyXlow [joynum] + 1;	/* no joystick connected, do nothing */
+   joyy=JoyYlow [joynum] + 1;
+ }
+
+ if (joyx > JoyXhigh [joynum])
+   xmove = 1;
+ else if (joyx < JoyXlow [joynum])
+   xmove = -1;
+ if (joyy > JoyYhigh [joynum])
+   ymove = 1;
+ else if (joyy < JoyYlow [joynum])
+   ymove = -1;
+
+ switch (ymove*3+xmove)
+ {
+   case -4: action.dir = northwest; break;
+   case -3: action.dir = north; break;
+   case -2: action.dir = northeast; break;
+   case -1: action.dir = west; break;
+   case  0: action.dir = nodir; break;
+   case  1: action.dir = east; break;
+   case  2: action.dir = southwest; break;
+   case  3: action.dir = south; break;
+   case  4: action.dir = southeast; break;
+ }
+
+#if 0
+ buttons = inportb (0x201);	/* Get all four button status */
+ if (joynum == 1)
+ {
+   action.button1 = ((buttons & 0x10) == 0);
+   action.button2 = ((buttons & 0x20) == 0);
+ }
+ else
+ {
+   action.button1 = ((buttons & 0x40) == 0);
+   action.button2 = ((buttons & 0x80) == 0);
+ }
+#endif
+ float rightz = SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_TRIGGERRIGHT) / 32768.f;
+ if (rightz > 0.5f)
+ {
+   action.button1 = 1;
+ }
+ else
+ {
+   action.button1 = 0;
+ }
+ float leftz = SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_TRIGGERLEFT) / 32768.f;
+ if (leftz > 0.5f)
+ {
+   action.button2 = 1;
+ }
+ else
+ {
+   action.button2 = 0;
+ }
+ if (buttonflip)
+ {
+   buttons = action.button1;
+   action.button1 = action.button2;
+   action.button2 = buttons;
+ }
+ return (action);
+}
+
+
 
 ControlStruct ControlPlayer (int player)
 {
+ ControlStruct ret;
+
+ switch (playermode[player])
+ {
+   case keyboard : return ControlKBD ();
+   case joystick1: return ControlJoystick(1);
+   case joystick2: return ControlJoystick(2);
+ }
+
+ return ControlKBD();
+#if 0
 	int xmove=0,
 		ymove=0;
 	ControlStruct action;
 
 	IN_Poll();
 
-	if (keydown [key[north]])
+	if (_keydown [key[north]])
 	ymove=-1;
-	if (keydown [key[east]])
+	if (_keydown [key[east]])
 	xmove=1;
-	if (keydown [key[south]])
+	if (_keydown [key[south]])
 	ymove=1;
-	if (keydown [key[west]])
+	if (_keydown [key[west]])
 	xmove=-1;
 
-	if (keydown [key[northeast]])
+	if (_keydown [key[northeast]])
 	{
 	ymove=-1;
 	xmove=1;
 	}
-	if (keydown [key[northwest]])
+	if (_keydown [key[northwest]])
 	{
 	ymove=-1;
 	xmove=-1;
 	}
-	if (keydown [key[southeast]])
+	if (_keydown [key[southeast]])
 	{
 	ymove=1;
 	xmove=1;
 	}
-	if (keydown [key[southwest]])
+	if (_keydown [key[southwest]])
 	{
 	ymove=1;
 	xmove=-1;
+	}
+
+	action.button1 = 0;
+	action.button2 = 0;
+
+	CheckGamepad();
+	if (controller)
+	{
+		//float leftx = SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_LEFTX) / 32768.f;
+		float lefty = SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_LEFTY) / 32768.f;
+		//float rightx = SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_RIGHTX) / 32768.f;
+		float righty = SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_RIGHTY) / 32768.f;
+		if (lefty < -0.1f)
+		{
+			if (righty < -0.1f)
+			{
+				ymove = -1;
+			}
+			else if (righty > 0.1f)
+			{
+				xmove = 1;
+			}
+		}
+		else if (lefty > 0.1f)
+		{
+			if (righty < -0.1f)
+			{
+				xmove = -1;
+			}
+			else if (righty > 0.1f)
+			{
+				ymove = 1;
+			}
+		}
+		float rightz = SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_TRIGGERRIGHT) / 32768.f;
+		if (rightz > 0.5f) action.button1 = 1;
+		float leftz = SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_TRIGGERLEFT) / 32768.f;
+		if (leftz > 0.5f) action.button2 = 1;
 	}
 
 	switch (ymove*3+xmove)
@@ -426,10 +759,11 @@ ControlStruct ControlPlayer (int player)
 	case  4: action.dir = southeast; break;
 	}
 
-	action.button1 = keydown [keyB1];
-	action.button2 = keydown [keyB2];
+	action.button1 |= _keydown [keyB1];
+	action.button2 |= _keydown [keyB2];
 
 	return (action);
+#endif
 }
 
 

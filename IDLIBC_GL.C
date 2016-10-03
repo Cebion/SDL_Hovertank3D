@@ -388,18 +388,28 @@ void VideoSetFrameBuffer(int crtc, int pel, video_fbo_t * vfbo)
 	vfbo->yoffset = ofs/video_line_width;
 }
 
-float video_color_border[4];
+float video_color_border[3];
 void ColorBorder (int color)
 {
-	*(unsigned int*)video_color_border = GetColor(color);
+	char border[4];
+	*(unsigned int*)border = GetColor(color);
+	video_color_border[0] = border[0]/256.f;
+	video_color_border[1] = border[1]/256.f;
+	video_color_border[2] = border[2]/256.f;
 }
 
 void VideoSync(void)
 {
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-	glViewport(0,0,surfaceWidth,surfaceHeight);
-	glClearColor(1,1,1,1);
+	glViewport(viewportX,viewportY,viewportWidth,viewportHeight);
+	glClearColor(
+		video_color_border[0],
+		video_color_border[1],
+		video_color_border[2],
+		1);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	glViewport(viewportX,viewportY,viewportWidth,viewportHeight);
 
 	float xoffset = (float)video_fbo.xoffset;
 	float yoffset = (float)video_fbo.yoffset;
@@ -640,6 +650,39 @@ void DrawShape(int x,int y,unsigned scale, memptr shapeptr)
 	glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
 }
 
+void DrawScaledShape(int sxl, int yl, int sxh, int yh, int shapexl, int shapexh, memptr shapeptr)
+{
+	gltexture *shape =  (gltexture*)shapeptr;
+
+	SetScreenOfs();
+
+	float u0 = shapexl / (float)shape->width;
+	float u1 = shapexh / (float)shape->width;
+
+	GLfloat texcoord[] = {
+		u0, 0,
+		u1, 0,
+		u1, 1,
+		u0, 1,
+	};
+
+	float x0 = (float)(sxl + video_screenofs_x);
+	float y0 = (float)(yl + video_screenofs_y);
+	float x1 = (float)(sxh + video_screenofs_x);
+	float y1 = (float)(yh + video_screenofs_y);
+
+	GLfloat vertices[] = {
+		x0, y0, 0,
+		x1, y0, 0,
+		x1, y1, 0,
+		x0, y1, 0,
+	};
+
+	UseTextureShader(matProj2D.m, vertices, false, shape->texture, texcoord);
+
+	glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+}
+
 
 /*
 ===========================================================================
@@ -795,6 +838,27 @@ void DrawLine (int xl, int xh, int y,int color)
 	float y0 = (float)(y + video_screenofs_y);
 	float x1 = (float)(xh + 1 + video_screenofs_x);
 	float y1 = y0 + 1.f;
+
+	GLfloat vertices[] = {
+		x0,	y0, 0,
+		x1,	y0, 0,
+		x1,	y1, 0,
+		x0,	y1, 0,
+	};
+
+	UseColorShader(matProj2D.m, vertices, color);
+
+	glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+}
+
+void Bar (int x, int y, int wide, int height, int color)
+{
+	SetScreenOfs();
+
+	float x0 = (float)(x*8 + video_screenofs_x);
+	float y0 = (float)(y + video_screenofs_y);
+	float x1 = x0 + (float)(wide*8);
+	float y1 = y0 + (float)height;
 
 	GLfloat vertices[] = {
 		x0,	y0, 0,

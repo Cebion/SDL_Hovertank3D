@@ -28,6 +28,8 @@
 */
 #include "IDLIB.H"
 
+#define OLDDRAW
+
 //#define PROFILE
 
 #ifndef PROFILE

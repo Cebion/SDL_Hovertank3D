@@ -24,7 +24,10 @@ typedef struct {
 } font_t;
 
 extern SDL_Window * window;
-extern int surfaceWidth, surfaceHeight;
+extern int windowFullscreen;
+extern int windowWidth, windowHeight;
+extern int viewportX, viewportY;
+extern int viewportWidth, viewportHeight;
 
 /*
    IDLIBC_SHADERS

@@ -111,16 +111,40 @@ typedef enum {north,northeast,east,southeast,south,southwest,west,
 typedef struct {dirtype dir;
 		boolean button1,button2;} ControlStruct;
 
-extern char keydown[128];
+typedef enum {keyboard,mouse,joystick1,joystick2,demo} inputtype;
+
+inputtype	extern	playermode[3];
+//extern char keydown[128];
+char * GetKeyDown(void);
+#define keydown (GetKeyDown())
+int		extern	JoyXlow[3],
+			JoyXhigh[3],
+			JoyYlow [3],
+			JoyYhigh [3];	// 1&2 are used, 0 is just space
+
+char		extern	key[8], keyB1, keyB2;	// scan codes for key control
+
 void LoadCtrls (void);
 void SaveCtrls (void);
+
+void ReadJoystick (int joynum,int *xcount,int *ycount);
+
+void CalibrateJoy (int joynum);
+void calibratekeys (void);
+
+ControlStruct ControlKBD (void);
+ControlStruct ControlJoystick (int joynum);
 ControlStruct ControlPlayer (int player);
 
 void ClearKeys (void);
 void Ack(void);
 
 int NoBiosKey(int parm);
-extern int	NBKscan, NBKascii;
+//extern int	NBKscan, NBKascii;
+int GetNBKscan();
+int GetNBKascii();
+#define NBKscan (GetNBKscan())
+#define NBKascii (GetNBKascii())
 
 /*
 ===========================================================================
@@ -189,7 +213,7 @@ void FadeUp (void);
 void FadeDown (void);
 
 //void XorBar(int xl,int yl,int width,int height);
-//void Bar (int xl,int yl,int width,int height,int fill);
+void Bar (int xl,int yl,int width,int height,int fill);
 
 /*
 ============================================================================
@@ -250,6 +274,7 @@ void DrawChar (int x, int y, int picnum);
 //void CopyChar (int x, int y);
 void DrawPic (int x, int y, int picnum);
 void DrawShape(int x,int y,unsigned scale, memptr shapeptr);
+void DrawScaledShape(int sxl, int yl, int sxh, int yh, int shapexl, int shapexh, memptr shapeptr);
 void SetLineWidth (int width);
 //void DrawSprite (int xcoord, int ycoord, int spritenum);
 //void DrawSpriteT (unsigned wide,unsigned height,unsigned source,
@@ -271,7 +296,7 @@ void CopyEGA(int wide, int height, int source, int dest);
 #if 0
 int extern sx,sy,leftedge, screencenterx ,screencentery, segoffset;
 #else
-int extern sx,sy,screencenterx ,screencentery;
+int extern sx,sy,leftedge,screencenterx ,screencentery;
 #endif
 
 //int Get (void);

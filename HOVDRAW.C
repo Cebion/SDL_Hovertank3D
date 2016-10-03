@@ -905,7 +905,7 @@ void DrawWallList (void)
     {
       wall->leftclip = newleft+1;
       wall->rightclip = rightclip;
-#if 0
+#ifdef OLDDRAW
       DrawWall (wall);
 #else
 	  DrawWallZ(
@@ -916,7 +916,7 @@ void DrawWallList (void)
     }
   }
 
-#if 0
+#ifdef OLDDRAW
 //
 // finish all lines to the right edge
 //
@@ -964,7 +964,7 @@ void DrawScaleds (void)
   for (obj = &objlist[1];obj<=lastobj;obj++)
     if (obj->_class)
     {
-#if 0
+#ifdef OLDDRAW
       viewx = obj->viewx - obj->size;		// now value of nearest edge
       if (viewx >= FOCALLENGTH+MINDIST)
       {
@@ -984,7 +984,7 @@ void DrawScaleds (void)
 #endif
     }
 
-#if 0
+#ifdef OLDDRAW
   if (!numvisable)
     return;
 
@@ -1163,9 +1163,11 @@ void FinishView (void)
   EGAWRITEMODE(2);
 #endif
 
+#ifndef OLDDRAW
   EnableZ(0, 0, VIEWWIDTH, VIEWHEIGHT, viewx/65536.f, viewy/65536.f, viewangle);
   DrawPlaneZ(MAPSIZE,MAPSIZE,0.5,0);
   DrawPlaneZ(MAPSIZE,MAPSIZE,-0.5,8);
+#endif
 //
 // draw the wall list
 //
@@ -1176,7 +1178,9 @@ void FinishView (void)
 //
   DrawScaleds();
 
+#ifndef OLDDRAW
   DisableZ();
+#endif
 
 //
 // show screen and time last cycle
