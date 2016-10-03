@@ -1426,7 +1426,24 @@ int main(int argc, char **argv)
   int i,x,xl,xh,y,plane,size;
   SampledSound *samples;
 
-	_chdir("data");
+	FILE * ftest = fopen("EGAGRAPH.HOV", "rb");
+	if (ftest)
+	{
+		fclose(ftest);
+	}
+	else
+	{
+		_chdir("HOVERTAN");
+		FILE * ftest = fopen("EGAGRAPH.HOV", "rb");
+		if (ftest)
+		{
+			fclose(ftest);
+		}
+		else
+		{
+			SDL_Log("Unable to find game files\n");
+		}
+	}
 
 	boolean LaunchedFromShell = false;
 
