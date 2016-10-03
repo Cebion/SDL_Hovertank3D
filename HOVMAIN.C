@@ -1520,7 +1520,6 @@ int main(int argc, char **argv)
 
 	if (soundblaster)
 		soundblaster = jmDetectSoundBlaster(-1);
-	soundblaster = 0;
 
 #if 0
 	if (stricmp(_argv[1], "NOBLASTER") == 0)
