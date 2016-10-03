@@ -1,8 +1,8 @@
 
 #include "IDLIB.H"
+#include "IDLIB_SDL.H"
 
 #include <stdint.h>
-#include <assert.h>
 
 #if NUMPICS>0
 pictype	pictable[NUMPICS];
@@ -257,4 +257,369 @@ int RndT(void) {
 }
 
 
+
+/*
+============================================================================
+
+			MID LEVEL GRAPHIC ROUTINES
+
+============================================================================
+*/
+
+#define DRAWCHAR(x,y,n) DrawChar(x,(y)*8,n)
+
+int win_xl,win_yl,win_xh,win_yh;
+
+int sx,sy,leftedge;
+
+int screencenterx = 20,screencentery = 11;
+
+
+//////////////////////////
+//
+// DrawWindow
+// draws a bordered window and homes the cursor
+//
+//////////////////////////
+
+void DrawWindow (int xl, int yl, int xh, int yh)
+{
+ int x,y;
+ win_xl=xl;
+ pxl = xl*8+8;
+ win_yl=yl;
+ win_xh=xh;
+ pxh = xh*8;
+ win_yh=yh;		// so the window can be erased
+
+ DRAWCHAR (xl,yl,1);
+ for (x=xl+1;x<xh;x++)
+   DRAWCHAR (x,yl,2);
+ DRAWCHAR (xh,yl,3);
+ for (y=yl+1;y<yh;y++)
+ {
+   DRAWCHAR (xl,y,4);
+   for (x=xl+1;x<xh;x++)
+     DRAWCHAR (x,y,9);
+   DRAWCHAR (xh,y,5);
+ }
+ DRAWCHAR (xl,yh,6);
+ for (x=xl+1;x<xh;x++)
+   DRAWCHAR (x,yh,7);
+ DRAWCHAR (xh,yh,8);
+
+ sx = leftedge = xl+1;
+ sy = yl+1;
+ px=sx*8;
+ py=pyl=sy*8;
+}
+
+void EraseWindow (void)
+{
+ int x,y;
+
+ for (y=win_yl+1;y<win_yh;y++)
+   for (x=win_xl+1;x<win_xh;x++)
+     DRAWCHAR (x,y,9);
+
+ sx = leftedge = win_xl+1;
+ sy = win_yl+1;
+ px=sx*8;
+ py=pyl=sy*8;
+}
+
+/////////////////////////////
+//
+// CenterWindow
+// Centers a DrawWindow of the given size
+//
+/////////////////////////////
+
+void CenterWindow (int width, int height)
+{
+  int xl = screencenterx-width/2;
+  int yl = screencentery-height/2;
+
+  DrawWindow (xl,yl,xl+width+1,yl+height+1);
+}
+
+///////////////////////////////
+//
+// ExpWin {h / v}
+// Grows the window outward
+//
+///////////////////////////////
+void ExpWin (int width, int height)
+{
+  if (width > 2)
+  {
+    if (height >2)
+      ExpWin (width-2,height-2);
+    else
+      ExpWinH (width-2,height);
+  }
+  else
+    if (height >2)
+      ExpWinV (width,height-2);
+
+  WaitVBL (1);
+  CenterWindow (width,height);
+}
+
+void ExpWinH (int width, int height)
+{
+  if (width > 2)
+    ExpWinH (width-2,height);
+
+  WaitVBL (1);
+  CenterWindow (width,height);
+}
+
+void ExpWinV (int width, int height)
+{
+  if (height >2)
+    ExpWinV (width,height-2);
+
+  WaitVBL (1);
+  CenterWindow (width,height);
+}
+
+/*
+===========================================================================
+
+		 CHARACTER BASED PRINTING ROUTINES
+
+===========================================================================
+*/
+
+/////////////////////////
+//
+// Print
+// Prints a string at sx,sy.  No clipping!!!
+//
+/////////////////////////
+
+void Print (const char *str)
+{
+  unsigned char ch;
+
+  while ((ch=*str++) != 0)
+    if (ch == '\n')
+    {
+      sy++;
+      sx=leftedge;
+    }
+    else if (ch == '\r')
+      sx=leftedge;
+    else
+      DRAWCHAR (sx++,sy,ch);
+}
+
+
+
+
+
+
+////////////////////////////////////////////////////////////////////
+//
+// Input unsigned
+//
+////////////////////////////////////////////////////////////////////
+unsigned InputInt(void)
+{
+ char string[18]="",digit,hexstr[17]="0123456789ABCDEF";
+ unsigned value,loop,loop1;
+
+ Input(string,2);
+ if (string[0]=='$')
+   {
+    int digits;
+
+    digits=strlen(string)-2;
+    if (digits<0) return 0;
+
+    for (value=0,loop1=0;loop1<=digits;loop1++)
+      {
+       digit=toupper(string[loop1+1]);
+       for (loop=0;loop<16;loop++)
+	  if (digit==hexstr[loop])
+	    {
+	     value|=(loop<<(digits-loop1)*4);
+	     break;
+	    }
+      }
+   }
+ else if (string[0]=='%')
+   {
+    int digits;
+
+    digits=strlen(string)-2;
+    if (digits<0) return 0;
+
+    for (value=0,loop1=0;loop1<=digits;loop1++)
+      {
+       if (string[loop1+1]<'0' || string[loop1+1]>'1') return 0;
+       value|=(string[loop1+1]-'0')<<(digits-loop1);
+      }
+   }
+ else value=atoi(string);
+ return value;
+}
+
+
+
+
+////////////////////////////////////////////////////////////////////
+//
+// line Input routine (PROPORTIONAL)
+//
+////////////////////////////////////////////////////////////////////
+int Input(char *string,int max)
+{
+ char key;
+ int count=0,loop;
+ int pxt[90];
+ pxt[0]=px;
+
+ do {
+     key=toupper(PGet()&0xff);
+     if ((key==127 || key==8)&&count>0)
+       {
+	count--;
+	px=pxt[count];
+	DrawPchar(string[count]);
+	px=pxt[count];
+       }
+
+     if (key>=' ' && key<='z' && count<max)
+       {
+	*(string+count++)=key;
+	DrawPchar(key);
+	pxt[count]=px;
+       }
+
+    } while (key!=27 && key!=13);
+
+ for (loop=count;loop<max;loop++) *(string+loop)=0;
+
+ if (key==13) return 1;
+ return 0;
+}
+
+
+
+
+
+
+/////////////////////////
+//
+// PPrint
+// Prints a string at px,py.  No clipping!!!
+//
+/////////////////////////
+
+void PPrint (const char *str)
+{
+  unsigned char ch;
+
+  while ((ch=*str++) != 0)
+    if (ch == '\n')
+    {
+      py+=10;
+      px=pxl;
+    }
+    else if (ch == '')
+      fontcolor=(*str++)-'A';	// set color A-P
+    else
+      DrawPchar (ch);
+}
+
+
+
+/////////////////////////
+//
+// PGet
+// Flash a cursor at px,py and waits for a user NoBiosKey
+//
+/////////////////////////
+
+int PGet (void)
+{
+ int oldx;
+ 
+ oldx=px;
+
+ ClearKeys();
+ while (!(NoBiosKey(1)&0xff))
+ {
+   DrawPchar ('_');
+   WaitVBL (5);
+   px=oldx;
+   DrawPchar ('_');
+   px=oldx;
+   if (NoBiosKey(1)&0xff)		// slight response improver
+     break;
+   WaitVBL (5);
+ }
+ px=oldx;
+ return NoBiosKey(0);		// take it out of the buffer
+}
+
+
+/////////////////////////
+//
+// PSize
+// Return the pixels required to proportionaly print a string
+//
+/////////////////////////
+
+int PSize (const char *str)
+{
+  int length=0;
+  unsigned char ch;
+
+  while ((ch=*str++) != 0)
+  {
+    if (ch=='')	// skip color changes
+    {
+      str++;
+      continue;
+    }
+    length += ((font_t *)grsegs[STARTFONT])->width[ch];
+  }
+
+  return length;
+}
+
+
+/////////////////////////
+//
+// CPPrint
+// Centers the string between pxl/pxh
+//
+/////////////////////////
+
+void CPPrint (const char *str)
+{
+  int width;
+
+  width = PSize(str);
+  px=pxl+(int)(pxh-pxl-width)/2;
+  PPrint (str);
+}
+
+
+void PPrintUnsigned (unsigned val)
+{
+  char str[512];
+  ltoa((long)val,str,10);
+  PPrint (str);
+}
+
+void PPrintInt (int val)
+{
+  char str[512];
+  itoa(val,str,10);
+  PPrint (str);
+}
 

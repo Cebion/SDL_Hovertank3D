@@ -119,7 +119,7 @@ ControlStruct ControlPlayer (int player);
 void ClearKeys (void);
 void Ack(void);
 
-//int NoBiosKey(int parm);
+int NoBiosKey(int parm);
 extern int	NBKscan, NBKascii;
 
 /*

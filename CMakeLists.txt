@@ -16,6 +16,7 @@ add_executable(game WIN32
    MEMMGR.C
    IDLIBC.C
    IDLIBC_SDL.C
+   IDLIBC_SHADERS.C
    IDLIBC_GL.C
    HOVDRAW.C
    HOVTRACE.C
