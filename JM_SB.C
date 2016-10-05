@@ -23,9 +23,9 @@
 **	v1.0d4
 */
 
-//#include <dos.h>
+#include <inttypes.h>
 
-#include "jm_sb.h"
+#include "JM_SB.H"
 
 //#pragma	warn	-pia	// Because I use if (x = y) alot...
 

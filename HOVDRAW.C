@@ -19,7 +19,7 @@
 #include "HOVERDEF.H"
 #pragma hdrstop
 
-long bytecount,endcount;		// for profiling
+int32_t bytecount,endcount;		// for profiling
 
 /*
 ============================================================================
@@ -91,7 +91,7 @@ unsigned screenloc[3]=
 
 int screenpage,tics;
 
-long lasttimecount;
+int32_t lasttimecount;
 
 #define SHIFTFRAMES	256
 int yshift[SHIFTFRAMES];	// screen sliding variables
@@ -254,8 +254,8 @@ void DrawWall (walltype *wallptr)
   int 		static	y1l,y1h,y2l,y2h;
 
   int		i;
-  long	leftheight,rightheight;
-  long		height,heightstep;
+  int32_t	leftheight,rightheight;
+  int32_t		height,heightstep;
 
 
   int temp,insight,x,y,slope,endfrac,end;
@@ -278,9 +278,9 @@ void DrawWall (walltype *wallptr)
 //
 // fill in the zbuffer
 //
-  height = (long)wall.height1<<16;
+  height = (int32_t)wall.height1<<16;
   if (wall.x2 != wall.x1)
-    heightstep = ((long)(wall.height2-wall.height1)<<16)/(int)(wall.x2-wall.x1);
+    heightstep = ((int32_t)(wall.height2-wall.height1)<<16)/(int)(wall.x2-wall.x1);
   else
     heightstep = 0;
 
@@ -322,7 +322,7 @@ void DrawWall (walltype *wallptr)
   //
   // slopes down to the right
   //
-    slope = ((long)(wall.x2-wall.x1)<<6)/(y2l-y1l);	// in 128ths
+    slope = ((int32_t)(wall.x2-wall.x1)<<6)/(y2l-y1l);	// in 128ths
 
     ysteps = y2l-y1l;
     if (y1l<VIEWY)
@@ -353,7 +353,7 @@ void DrawWall (walltype *wallptr)
   //
   // slopes down to the left
   //
-    slope = ((long)(wall.x2-wall.x1)<<6)/(y1l-y2l);	// in 128ths
+    slope = ((int32_t)(wall.x2-wall.x1)<<6)/(y1l-y2l);	// in 128ths
 
     ysteps = y1l-y2l;
     if (y2l<VIEWY)
@@ -407,7 +407,7 @@ int tilecolor;
 
 void TraceRay (unsigned angle)
 {
-  long tracex,tracey,tracexstep,traceystep,searchx,searchy;
+  int32_t tracex,tracey,tracexstep,traceystep,searchx,searchy;
   fixed fixtemp;
   int otx,oty,searchsteps;
 
@@ -476,8 +476,8 @@ void TraceRay (unsigned angle)
 	//
 	if (++searchsteps == 16)
 	{
-	  tracex = (long)otx<<TILESHIFT;
-	  tracey = (long)oty<<TILESHIFT;
+	  tracex = (int32_t)otx<<TILESHIFT;
+	  tracey = (int32_t)oty<<TILESHIFT;
 	  if (tracexstep>0)
 	  {
 	    if (traceystep<0)
@@ -781,7 +781,7 @@ void BuildTables (void)
 //
   for (i=0;i<SHIFTFRAMES;i++)
   {
-    long angle = (long)ANGLES*i/SHIFTFRAMES;
+    int32_t angle = (int32_t)ANGLES*i/SHIFTFRAMES;
     value = FixedByFrac(7*GLOBAL1,sintable[angle]);
     yshift[i] = SCREENWIDTH*((value+8*GLOBAL1)>>16);
   }

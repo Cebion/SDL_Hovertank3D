@@ -1,15 +1,24 @@
-cmake_minimum_required (VERSION 2.6)
+cmake_minimum_required (VERSION 2.8)
 
 
 include(FindPkgConfig)
 
-
 project(game)
 
-find_package(SDL REQUIRED)
+find_package(OpenGL REQUIRED)
+
+if (WIN32)
+   find_file(SDL2_INCLUDE_DIRS NAME SDL.h HINTS SDL2)
+   find_library(SDL2_LIBRARIES NAME SDL2)
+   find_library(SDL2MAIN_LIBRARIES NAME SDL2)
+endif (WIN32)
+
+if (UNIX)
+   pkg_search_module(SDL2 REQUIRED sdl2)
+endif (UNIX)
 
 include_directories(
-   ${SDL_INCLUDE_DIR}
+   ${SDL2_INCLUDE_DIRS}
 )
 
 add_executable(game WIN32
@@ -29,19 +38,7 @@ add_executable(game WIN32
 )
 
 target_link_libraries(game
-   opengl32.lib
-   ${SDL_LIBRARY}
-   ${SDLMAIN_LIBRARY}
+   ${SDL2_LIBRARIES}
+   ${SDL2MAIN_LIBRARIES}
+   ${OPENGL_LIBRARIES}
 )
-
-#project (hovertank)
-#add_executable(hovertank
-#   main.c
-#)
-#target_link_libraries(hovertank
-#   ${SDL_LIBRARY}
-#   ${SDLMAIN_LIBRARY}
-#   game
-#)
-
-

@@ -8,18 +8,22 @@
 #endif
 #include <windows.h>
 #endif
-#include <gl/gl.h>
+#include <GL/gl.h>
 #include "glext.h"
 
 #define GLDECLARE(x) extern PFN##x##PROC x
 #define GLDEFINE(x) PFN##x##PROC x
 #define GLGETPROC(x) x = (PFN##x##PROC)SDL_GL_GetProcAddress(#x); assert(x);
 
+#define _GLDECLARE(x) extern PFN##x##PROC _##x
+#define _GLDEFINE(x) PFN##x##PROC _##x
+#define _GLGETPROC(x) _##x = (PFN##x##PROC)SDL_GL_GetProcAddress(#x); assert(x);
+
 typedef struct {
-	short height;
-	short location[256];
-	unsigned char width[256];
-	short total_width;
+	int16_t height;
+	int16_t location[256];
+	uint8_t width[256];
+	int16_t total_width;
 	GLuint texture;
 } font_t;
 
@@ -39,4 +43,4 @@ void UseTextureShader(float * matrix, float * vertices, int blend, unsigned int 
 void UseFontShader(float * matrix, float * vertices, int blend, uint8_t color, GLuint texture, float * texcoord);
 void UseFadeShader(float fade, GLuint texture, float * vertices, float * texcoords);
 
-#endif IDLIB_SDL
+#endif//IDLIB_SDL

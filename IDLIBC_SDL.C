@@ -1,10 +1,12 @@
 
-#include "JM_SB.H"
 #include "IDLIB.H"
+#include "JM_SB.H"
 
 #define SAMPLERATE 44100
 #define SAMPLES (SAMPLERATE/70)
-const float SAMPLESTEP = 1.f/SAMPLERATE;
+
+int SPKinterval;
+float SampleStep;
 
 static void MyAudioCallback(void *userdata, Uint8 *stream, int len);
 
@@ -18,7 +20,7 @@ int processedevents = 0;
 int _NBKscan,_NBKascii;
 char _keydown[128];
 char key[8],keyB1,keyB2;
-long highscore;
+int32_t highscore;
 int level,bestlevel;
 
 SDL_GameController * controller;
@@ -28,9 +30,6 @@ memptr soundseg;
 void IDLIBC_GL_Init();
 
 #define ASPECT (320.f/240.f)
-
-#define WIN32_LEAN_AND_MEAN 1
-#include <Windows.h>
 
 void UpdateWindow()
 {
@@ -71,19 +70,29 @@ void IDLIBC_SDL_Init()
 #endif
 
 	window = SDL_CreateWindow("SDL Hovertank", x, y, w, h, flags);
+	SDL_ShowCursor(SDL_DISABLE);
 	SDL_GetWindowSize(window, &windowWidth, &windowHeight);
 	UpdateWindow();
 
 	IDLIBC_GL_Init();
 
 	SDL_AudioSpec desired;
+	SDL_AudioSpec audiospec;
 	desired.freq = SAMPLERATE;
 	desired.format = AUDIO_S16;
 	desired.channels = 1;
-	desired.samples = SAMPLES*2;//1024;
+	desired.samples = SAMPLES*2;
 	desired.callback = MyAudioCallback;
 	desired.userdata = NULL;
-	if (SDL_OpenAudio(&desired, NULL) != 0) {assert(0);}
+	if (SDL_OpenAudio(&desired, &audiospec) != 0) {assert(0);}
+
+	SDL_Log("freq %d", audiospec.freq);
+	SDL_Log("format %d", audiospec.format);
+	SDL_Log("channels %d", audiospec.channels);
+	SDL_Log("samples %d", audiospec.samples);
+
+	SPKinterval = audiospec.freq/140;
+	SampleStep = 1.f/audiospec.freq;
 
 	SDL_PauseAudio(0);
 }
@@ -244,6 +253,7 @@ void ProcessEvent(SDL_Event * event)
 			UpdateWindow();
 			break;
 		}
+		break;
 	case SDL_KEYDOWN:
 		if (event->key.keysym.sym == SDLK_RETURN && event->key.keysym.mod & KMOD_ALT)
 		{
@@ -785,13 +795,24 @@ int *UpdateIntTime()
 
 int SPKfreq;
 
+//#define SoundLog SDL_Log
+#define SoundLog(...)
+
 void _sound(int _frequency)
 {
+	//if (_frequency != SPKfreq)
+	{
+		SoundLog("freq %d",_frequency);
+	}
 	SPKfreq = _frequency;
 }
 
 void _nosound()
 {
+	//if (0 != SPKfreq)
+	{
+		SoundLog("freq 0");
+	}
 	SPKfreq = 0;
 }
 
@@ -820,7 +841,15 @@ void _PlaySound(int soundnum)
 	spksndtype * sound = ((spksndtype*)soundseg) + soundnum;
 
 	if (dontplay || soundmode == 0) return;
-	if (sound->priority < SndPriority) return;
+	if (sound->priority < SndPriority)
+	{
+		SoundLog("   rejected lower priority");
+		return;
+	}
+	else if (SndPtr)
+	{
+		SoundLog("   replaced sound");
+	}
 
 	SndPriority = sound->priority;
 
@@ -835,6 +864,7 @@ void _PlaySound(int soundnum)
 
 void PlaySound(int soundnum)
 {
+	SoundLog("PlaySound %d", soundnum);
 	SDL_LockAudio();
 	_PlaySound(soundnum);
 	SDL_UnlockAudio();
@@ -842,6 +872,7 @@ void PlaySound(int soundnum)
 
 void _StopSound(void)
 {
+	SoundLog("StopSound");
 	if (dontplay) return;
 
 	SndPriority = 0;
@@ -895,16 +926,18 @@ void UpdateSPKR()
 		_nosound();
 		return;
 	}
-	_sound(freq);
+	_sound(1193180/freq);
 }
 
-float SPKtime; // time in seconds
+int SPKupdate;
+float SPKpulse;
+float SPKpos;
+float SPKvel;
+float SPKspeed = 1000.f/60.f/44100.f;
 
 static void MyAudioCallback(void *userdata, Uint8 *stream, int len)
 {
-	assert(len == SAMPLES*2*2);
-
-	memset(stream, 0, SAMPLES*2*2);
+	memset(stream, 0, len);
 
 	if (soundmode != 1)
 	{
@@ -915,9 +948,9 @@ static void MyAudioCallback(void *userdata, Uint8 *stream, int len)
 
 	if (soundblaster && jmData)
 	{
-		for (int i = 0; i < SAMPLES*2; i++)
+		for (int i = 0; i < len/2; i++)
 		{
-#if 0
+#if 1
 			int offset = (int)(jmDataTime*jmDataFreq);
 			if (offset >= jmDataLength)
 			{
@@ -926,6 +959,7 @@ static void MyAudioCallback(void *userdata, Uint8 *stream, int len)
 			}
 			int sample = (((int)jmData[offset]) - 127)*256;
 #else
+			// linear interpolation
 			float foffset = jmDataTime*jmDataFreq;
 			int offset = foffset;
 			if (offset+1 >= jmDataLength)
@@ -934,35 +968,38 @@ static void MyAudioCallback(void *userdata, Uint8 *stream, int len)
 				break;
 			}
 			float finterp = fmod(foffset, 1.f)*256.f;
-			int sample1 = ((float)jmData[offset]) - 128.f;
-			int sample2 = ((float)jmData[offset+1]) - 128.f;
-			int sample = (int)(sample1*(256.f-finterp) + sample2*finterp);
+			int sample1 = (float)jmData[offset];
+			int sample2 = (float)jmData[offset+1];
+			int sample = (int)(sample1*(256.f-finterp) + sample2*finterp) - 32768;
 #endif
 			*stream16 = (short)sample;
-			jmDataTime += SAMPLESTEP;
+			jmDataTime += SampleStep;
 			stream16++;
 		}
 	}
 
-	for (int i = 0; i < 2; i++)
+	for (int i = 0; i < len/2; i++)
 	{
-		if (SndPtr)
+		if (SPKupdate >= SPKinterval)
 		{
-			UpdateSPKR();
-		}
-		if (SPKfreq)
-		{
-			for (int i = 0; i < SAMPLES/4; i++)
+			if (SndPtr)
 			{
-				int sample = (1&(int)(SPKtime*SPKfreq*2))*65535 - 32768;
-				SPKtime += SAMPLESTEP;
-				*stream16 += sample;
-				stream16++;
+				UpdateSPKR();
 			}
+			SPKupdate = 0;
 		}
 		else
 		{
-			stream16+=SAMPLES;
+			SPKupdate++;
 		}
+		if (SPKfreq)
+		{
+			// square wave
+			int sample = (1&(int)SPKpulse)*65535 - 32768;
+			SPKpulse += SampleStep*SPKfreq*2;
+			*stream16 += sample;
+		}
+		stream16++;
 	}
 }
+

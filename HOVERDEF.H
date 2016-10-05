@@ -96,7 +96,7 @@ LevelDef extern	*levelheader;
 //
 #define SIGNBIT	error//0x80000000l
 
-typedef long fixed;
+typedef int32_t fixed;
 
 #define NORTH	0
 #define EAST	1
@@ -216,7 +216,7 @@ extern	unsigned screenloc[3];
 
 extern	int screenpage,tics;
 
-extern	long lasttimecount;
+extern	int32_t lasttimecount;
 
 extern	fixed sintable[ANGLES+ANGLES/4],*costable;
 
@@ -290,12 +290,16 @@ typedef struct
   int 		angle;
   int		hitpoints;
   int		radarx,radary,radarcolor;
-  long		speed;
+  int32_t		speed;
   unsigned	size;		// global radius for hit rect calculation
   fixed		xl,xh,yl,yh;	// hit rectangle
   int		ticcount;
   int		shapenum,stage;
-  int		temp1,temp2;
+  union {
+  int		temp1;
+  void*		temp1ptr;
+  };
+  int		temp2;
   dirtype	dir;
   void 		(*think)();
 } objtype;

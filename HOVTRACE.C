@@ -90,10 +90,10 @@ int backupwall[9] = {3,3,0, 2,0,0, 2,1,1};
 ========================
 */
 
-int FollowTrace (fixed tracex, fixed tracey, long deltax, long deltay, int max)
+int FollowTrace (fixed tracex, fixed tracey, int32_t deltax, int32_t deltay, int max)
 {
   int tx,ty,otx,oty;
-  long absdx,absdy,xstep,ystep;
+  int32_t absdx,absdy,xstep,ystep;
 
   tx = tracex>>TILESHIFT;
   ty = tracey>>TILESHIFT;
@@ -273,7 +273,7 @@ int FollowTrace (fixed tracex, fixed tracey, long deltax, long deltay, int max)
 int BackTrace (int finish)
 {
   fixed tracex,tracey;
-  long deltax,deltay,absdx,absdy;
+  int32_t deltax,deltay,absdx,absdy;
   int steps,otx,oty,testx,testheight,offset,wall;
 
   deltax = viewx-edgex;
@@ -332,8 +332,8 @@ int BackTrace (int finish)
     //
     // rotate the X value to see if it is behind the view plane
     //
-    if (TransformX (((long)tile.x<<16)+point1x[wall],
-		    ((long)tile.y<<16)+point1y[wall]) < FOCALLENGTH)
+    if (TransformX (((int32_t)tile.x<<16)+point1x[wall],
+		    ((int32_t)tile.y<<16)+point1y[wall]) < FOCALLENGTH)
     {
       tile.x = otx;
       tile.y = oty;
@@ -385,8 +385,8 @@ int BackTrace (int finish)
 
   wallon = cornerwall[wallon];	// turn to first visable face
 
-  edgex = ((long)tile.x<<16);
-  edgey = ((long)tile.y<<16);
+  edgex = ((int32_t)tile.x<<16);
+  edgey = ((int32_t)tile.y<<16);
 
   rightwall->wx0 = edgex+point1x[wallon];
   rightwall->wz0 = edgey+point1y[wallon];
@@ -416,7 +416,7 @@ void ForwardTrace (void)
 {
   int offset;
   fixed tracex,tracey;
-  long deltax,deltay;
+  int32_t deltax,deltay;
 
   deltax = edgex-viewx;
   deltay = edgey-viewy;
@@ -439,8 +439,8 @@ void ForwardTrace (void)
 //
 // start the new wall
 //
-  edgex = ((long)tile.x<<16);
-  edgey = ((long)tile.y<<16);
+  edgex = ((int32_t)tile.x<<16);
+  edgey = ((int32_t)tile.y<<16);
 
 //
 // if entire first wall is invisable, corner
@@ -573,8 +573,8 @@ void InsideCorner (void)
 
   wallon = cornerwall[wallon];	// turn to first visable face
 
-  edgex = ((long)tile.x<<16)+point1x[wallon];
-  edgey = ((long)tile.y<<16)+point1y[wallon];
+  edgex = ((int32_t)tile.x<<16)+point1x[wallon];
+  edgey = ((int32_t)tile.y<<16)+point1y[wallon];
 
   if (!BackTrace(0))		// backtrace without finishing a wall
   {
@@ -694,8 +694,8 @@ restart:
 //
 // transform first edge to screen coordinates
 //
-  edgex = ((long)tile.x<<16);
-  edgey = ((long)tile.y<<16);
+  edgex = ((int32_t)tile.x<<16);
+  edgey = ((int32_t)tile.y<<16);
 
   rightwall->wx0 = edgex+point1x[wallon];
   rightwall->wz0 = edgey+point1y[wallon];
@@ -756,8 +756,8 @@ advance:
 // proceed along wall
 //
 
-    edgex = ((long)tile.x<<16)+point2x[wallon];
-    edgey = ((long)tile.y<<16)+point2y[wallon];
+    edgex = ((int32_t)tile.x<<16)+point2x[wallon];
+    edgey = ((int32_t)tile.y<<16)+point2y[wallon];
 
     if (BackTrace(1))		// went behind a closer wall
       continue;
@@ -808,8 +808,8 @@ advance:
 //
 //######################
 
-  edgex = ((long)tile.x<<16)+point2x[wallon];
-  edgey = ((long)tile.y<<16)+point2y[wallon];
+  edgex = ((int32_t)tile.x<<16)+point2x[wallon];
+  edgey = ((int32_t)tile.y<<16)+point2y[wallon];
   FinishWall();
 
   wallon = cornerwall[wallon];
@@ -834,8 +834,8 @@ advance:
     rightwall->height1 = oldwall->height2;
 	rightwall->wx0 = oldwall->wx1;
 	rightwall->wz0 = oldwall->wz1;
-    edgex = ((long)tile.x<<16)+point2x[wallon];
-    edgey = ((long)tile.y<<16)+point2y[wallon];
+    edgex = ((int32_t)tile.x<<16)+point2x[wallon];
+    edgey = ((int32_t)tile.y<<16)+point2y[wallon];
     FinishWall();
   }
 

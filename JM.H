@@ -24,8 +24,8 @@
 #ifndef	__jm__
 #define	__jm__
 
-typedef	unsigned	int		word;
-typedef	unsigned	long	longword;
+typedef	uint16_t	word;
+typedef	uint32_t	longword;
 
 #define	false	0
 #define	true	1

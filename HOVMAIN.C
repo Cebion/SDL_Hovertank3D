@@ -20,7 +20,13 @@
 
 #include "HOVERDEF.H"
 
+#ifdef WIN32
 #include <direct.h> // _chdir
+#define chdir _chdir
+#else
+#include <unistd.h>
+#define stricmp strcasecmp
+#endif
 
 /*
 
@@ -48,18 +54,18 @@ int SNDstarted,KBDstarted;      // whether int handlers were started
 #pragma pack(push, 1)
 typedef struct
 {
-  short headersize;
-  long dictionary;
-  long dataoffsets;
+  int16_t  headersize;
+  uint32_t dictionary;
+  uint32_t dataoffsets;
 } grheadtype;
 #pragma pack(pop)
 
 grheadtype	*grhead;	// sets grhuffman and grstarts from here
 huffnode	*grhuffman;	// huffman dictionary for egagraph
-long            *grstarts;      // array of offsets in egagraph, -1 for sparse
+uint32_t        *grstarts;      // array of offsets in egagraph, -1 for sparse
 FILE*           grhandle;       // handle to egagraph, kept open allways
-long            grposition;     // current seek position in file
-long            chunkcomplen;   // compressed length of a chunk
+uint32_t        grposition;     // current seek position in file
+uint32_t        chunkcomplen;   // compressed length of a chunk
 
 
 //int soundblaster;               // present?
@@ -318,9 +324,9 @@ int CheckKeys(void)
 ============================
 */
 
-long GetChunkLength (int chunk)
+uint32_t GetChunkLength (int chunk)
 {
-  long len;
+  uint32_t len;
 
   fseek(grhandle,grstarts[chunk],SEEK_SET);
   fread(&len,1,sizeof(len),grhandle);
@@ -345,7 +351,7 @@ long GetChunkLength (int chunk)
 void LoadNearData (void)
 {
   FILE *handle;
-  long length;
+  uint32_t length;
 
 //
 // load egahead.ext (offsets and dictionary for graphics file)
@@ -375,7 +381,7 @@ void LoadNearData (void)
 ==========================
 */
 
-void SegRead (FILE * handle, memptr dest, long length)
+void SegRead (FILE * handle, memptr dest, uint32_t length)
 {
   if (length>0xffffl)
 	 Quit ("SegRead doesn't support 64K reads yet!");
@@ -412,8 +418,8 @@ void InitGrFile (void)
 //
 // calculate some offsets in the header
 //
-  grhuffman = (huffnode *)( ((char *)grhead)+grhead->dictionary);
-  grstarts = (long *)( ((char *)grhead)+grhead->dataoffsets);
+  grhuffman = (huffnode *)( ((int8_t *)grhead)+grhead->dictionary);
+  grstarts = (uint32_t *)( ((int8_t *)grhead)+grhead->dataoffsets);
 
   OptimizeNodes (grhuffman);
 
@@ -505,8 +511,8 @@ void ExpandGrChunk(int chunk)
 void CacheGrFile (void)
 {
   int i;
-  long filepos,newpos;          // current seek position in file
-  long expanded,compressed;     // chunk lengths
+  uint32_t filepos,newpos;          // current seek position in file
+  uint32_t expanded,compressed;     // chunk lengths
   memptr bigbufferseg;          // for compressed
 
 //
@@ -604,7 +610,7 @@ void CacheGrFile (void)
 
 void CachePic (int picnum)
 {
-	long expanded,compressed;     // chunk lengths
+	int expanded,compressed;     // chunk lengths
 	memptr bigbufferseg;          // for compressed
 
 	if (grsegs[picnum])
@@ -701,7 +707,6 @@ void CachePic (int picnum)
 		height = pictable[picnum-STARTPICS].height;
 	}
 
-	assert(width*height*4 == expanded);
 	//
 	// allocate space for expanded chunk
 	//
@@ -771,7 +776,7 @@ void TestSave(int picnum)
 =====================
 */
 
-void Quit (char *error)
+void Quit (const char *error)
 {
 //char extern far PIRACY;
 
@@ -848,7 +853,7 @@ void LoadLevel(void)
 {
   unsigned short *planeptr;
   int loop,x,y,i,j;
-  unsigned length;
+  uint16_t length;
   char filename[30];
   char num[3];
   memptr bufferseg;
@@ -873,7 +878,7 @@ void LoadLevel(void)
 
   BloadinMM(filename,&bufferseg);
 
-  length = *(unsigned short*)bufferseg;
+  length = *(uint16_t*)bufferseg;
 
   if (levelseg)
     MMFreePtr (&levelseg);
@@ -1354,7 +1359,7 @@ int ErrorHandler(int errval,int ax,int bx,int si)
 void LoadIn(char *filename,char **baseptr)
 {
  FILE *handle;
- long len;
+ uint32_t len;
  unsigned datapage;
 
 
@@ -1431,7 +1436,7 @@ int main(int argc, char **argv)
 	}
 	else
 	{
-		_chdir("HOVERTAN");
+		chdir("HOVERTAN");
 		FILE * ftest = fopen("EGAGRAPH.HOV", "rb");
 		if (ftest)
 		{

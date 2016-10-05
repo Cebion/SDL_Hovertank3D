@@ -33,7 +33,7 @@ unsigned tilemap[MAPSIZE][MAPSIZE];
 
 int godmode,singlestep,leveldone,startlevel;
 
-long score;
+int32_t score;
 
 timetype timestruct;
 
@@ -263,7 +263,7 @@ void StartLevel (unsigned short *plane1)
 
 void DropTime (void)
 {
-  static long secondtics;
+  static int32_t secondtics;
   int now;
 
   secondtics+= tics;
@@ -465,7 +465,7 @@ void TransformObon (void)
 {
   int ratio,screenx,pixelscale;
   fixed gx,gy,gxt,gyt;
-  long absdx,absdy;
+  int32_t absdx,absdy;
 
 //
 // translate point to view centered coordinates
@@ -578,7 +578,7 @@ int cyclecolors[NUMCYCLES] = {3,3,11};
 void WarpEffect (void)
 {
   int i,size;
-  long oldtime,time;
+  int32_t oldtime,time;
 
   screenofs = screenloc[screenpage];
   SetScreen ( screenofs,0);

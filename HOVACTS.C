@@ -865,7 +865,7 @@ void SpawnDrone (fixed gx, fixed gy)
   _new->hitpoints = 2;
   _new->shapenum = DRONE1PIC;
   _new->ticcount = Rnd(DRONEANM*3);
-  _new->temp1 = (int)_new;	// will hunt first think
+  _new->temp1ptr = _new;	// will hunt first think
   CalcBoundsNew();
 }
 
@@ -909,11 +909,11 @@ void DroneLockOn (void)
     if (check->_class == refugeeobj && !check->temp2)
     {
       check->temp2++;
-      obon.temp1 = (int)check;
+      obon.temp1ptr = check;
       return;
     }
 
-  obon.temp1 = (int)&objlist[0];	// go after player last
+  obon.temp1ptr = &objlist[0];	// go after player last
 }
 
 /*
@@ -926,8 +926,8 @@ void DroneLockOn (void)
 
 void DroneThink (void)
 {
-  if ( ((objtype *)obon.temp1)->_class != refugeeobj &&
-       ((objtype *)obon.temp1)->_class != playerobj)
+  if ( ((objtype *)obon.temp1ptr)->_class != refugeeobj &&
+       ((objtype *)obon.temp1ptr)->_class != playerobj)
     DroneLockOn ();		// target died
 
   obon.ticcount+=tics;
@@ -939,7 +939,7 @@ void DroneThink (void)
     obon.shapenum = DRONE1PIC + obon.stage;
   }
 
-  ChaseThing ((objtype *)obon.temp1);
+  ChaseThing ((objtype *)obon.temp1ptr);
 
   CalcBounds ();
 
@@ -1042,7 +1042,7 @@ void KillTank (objtype *hit)
 
 void AimAtPlayer (void)
 {
-  long deltax,deltay;
+  int32_t deltax,deltay;
   int i,xstep,ystep,tx,ty,steps;
   dirtype d[3],tdir, olddir, turnaround;
 
@@ -1347,7 +1347,7 @@ int Walk (void)
 
 void ChaseThing (objtype *chase)
 {
-  long deltax,deltay;
+  int32_t deltax,deltay;
   int i;
   dirtype d[3],tdir, olddir, turnaround;
 

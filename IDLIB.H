@@ -21,14 +21,16 @@
 #include "GRAPHHOV.H"
 #include "SNDSHOV.H"
 
+#include <inttypes.h>
+
 #ifndef __jm__
-typedef unsigned short boolean;
-typedef unsigned char byte;
+typedef uint16_t boolean;
+typedef uint8_t byte;
 #endif
 
 #define SIGN(x) ((x)>0?1:-1)
 #define ABS(x) ((int)(x)>0?(x):-(x))
-#define LABS(x) ((long)(x)>0?(x):-(x))
+#define LABS(x) ((int32_t)(x)>0?(x):-(x))
 
 
 
@@ -166,7 +168,7 @@ void BloadinMM (char *filename,memptr *spot);
 void OptimizeNodes (huffnode *table);
 
 void HuffExpand (unsigned char *source, unsigned char *dest,
-  long length,huffnode *hufftable);
+  int32_t length,huffnode *hufftable);
 
 void RLEWExpand (unsigned short *source, unsigned short *dest);
 
@@ -227,7 +229,7 @@ void Bar (int xl,int yl,int width,int height,int fill);
 
 typedef struct
 {
- short width,height;
+ int16_t width,height;
 } pictype;
 
 extern unsigned screenofs;		// adjustment for panning and buffers
@@ -335,7 +337,7 @@ void ExpWinV (int width, int height);
 ============================================================================
 */
 
-long extern score,highscore;
+int32_t extern score,highscore;
 
 /*
 ============================================================================
@@ -345,7 +347,7 @@ long extern score,highscore;
 ============================================================================
 */
 
-void Quit (char *);
+void Quit (const char *);
 
 /*
 ============================================================================
@@ -366,16 +368,19 @@ void Quit (char *);
 
 #include "JM_SB.H"
 
+#define itoa(value, str, base) {assert(base == 10); sprintf(str,"%d",value);}
+#define ltoa(value, str, base) {assert(base == 10); sprintf(str,"%d",value);}
+
 typedef struct
 {
-	int width;
-	int height;
-	unsigned int texture;
+	uint32_t width;
+	uint32_t height;
+	uint32_t texture;
 } gltexture;
 
 extern SDL_Window * window;
 
-long filelength(FILE * handle);
+int32_t filelength(FILE * handle);
 
 extern matrix4x4_t matProj2D;
 

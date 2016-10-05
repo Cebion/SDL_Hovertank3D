@@ -44,7 +44,7 @@ void OptimizeNodes (huffnode *table)
 */
 
 void HuffExpand (unsigned char *source, unsigned char *dest,
-  long length,huffnode *hufftable)
+  int32_t length,huffnode *hufftable)
 {
 	unsigned bit,byte,code;
 	huffnode *nodeon,*headptr;
@@ -126,11 +126,11 @@ void HuffExpand (unsigned char *source, unsigned char *dest,
 
 void RLEWExpand (unsigned short *source, unsigned short *dest)
 {
-  long length;
-  unsigned short value,count,i;
-  unsigned short *start, *end;
+  int32_t length;
+  uint16_t value,count,i;
+  uint16_t *start, *end;
 
-  length = *(long*)source;
+  length = *(int32_t*)source;
   end = dest + (length)/2;
 
   source+=2;		// skip length words
@@ -171,9 +171,9 @@ void RLEWExpand (unsigned short *source, unsigned short *dest)
 =============================================================================
 */
 
-long filelength(FILE * handle)
+int32_t filelength(FILE * handle)
 {
-	long cur,end;
+	int32_t cur,end;
 	cur = ftell(handle);
 	fseek(handle,0,SEEK_END);
 	end = ftell(handle);
@@ -195,7 +195,7 @@ long filelength(FILE * handle)
 void BloadinMM (char *filename,memptr *spot)
 {
   FILE * handle;
-  long length;
+  int32_t length;
   char *location;
   char error[80];
 
@@ -863,7 +863,7 @@ void CPPrint (const char *str)
 void PPrintUnsigned (unsigned val)
 {
   char str[512];
-  ltoa((long)val,str,10);
+  ltoa((int32_t)val,str,10);
   PPrint (str);
 }
 

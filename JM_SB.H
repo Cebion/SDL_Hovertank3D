@@ -20,12 +20,12 @@
 //	jm_sb.h
 //	Constants, structs, and function prototypes for my SoundBlaster stuff
 //
-typedef unsigned char byte;
-typedef unsigned short boolean;
+typedef uint8_t byte;
+typedef uint16_t boolean;
 
 
 #ifndef	__jm__
-#include "jm.h"
+#include "JM.H"
 #endif
 
 #ifndef __jm_sb__

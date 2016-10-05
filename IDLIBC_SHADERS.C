@@ -2,6 +2,9 @@
 #include "IDLIB.H"
 #include "IDLIB_SDL.H"
 
+void glActiveTexture(int x);
+
+#define glActiveTexture _glActiveTexture 
 
 // to use macro convenience
 #define PFNglCreateShaderPROC PFNGLCREATESHADERPROC
@@ -24,7 +27,6 @@
 #define PFNglUniform4fPROC PFNGLUNIFORM4FPROC
 #define PFNglUniform1iPROC PFNGLUNIFORM1IPROC
 #define PFNglActiveTexturePROC PFNGLACTIVETEXTUREPROC
-#define PFNglUniform1fPROC PFNGLUNIFORM1FPROC
 
 // use the convenient macros
 GLDEFINE(glCreateProgram);
@@ -46,7 +48,7 @@ GLDEFINE(glEnableVertexAttribArray);
 GLDEFINE(glUniform1f);
 GLDEFINE(glUniform4f);
 GLDEFINE(glUniform1i);
-GLDEFINE(glActiveTexture);
+_GLDEFINE(glActiveTexture);
 
 typedef struct
 {
@@ -90,7 +92,7 @@ void SHADERS_Init(void)
 	GLGETPROC(glUniform1f);
 	GLGETPROC(glUniform4f);
 	GLGETPROC(glUniform1i);
-	GLGETPROC(glActiveTexture);
+	_GLGETPROC(glActiveTexture);
 
 	CreateColorShader();
 	CreateTextureShader();
