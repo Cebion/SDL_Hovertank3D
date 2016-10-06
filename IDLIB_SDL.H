@@ -38,7 +38,7 @@ extern int viewportWidth, viewportHeight;
 */
 
 void SHADERS_Init(void);
-void UseColorShader(float * matrix, float * vertices, uint8_t color);
+void UseColorShader(float * matrix, float * vertices, int xor, uint8_t color);
 void UseTextureShader(float * matrix, float * vertices, int blend, unsigned int texture, float * texcoord);
 void UseFontShader(float * matrix, float * vertices, int blend, uint8_t color, GLuint texture, float * texcoord);
 void UseFadeShader(float fade, GLuint texture, float * vertices, float * texcoords);

@@ -796,10 +796,7 @@ void XPlot (int x, int y, int color)
 		x0,	y1, 0,
 	};
 
-	UseColorShader(matProj2D.m, vertices, 0xf);
-
-	glEnable(GL_BLEND);
-	glBlendFunc(GL_ONE_MINUS_DST_COLOR, GL_ZERO);
+	UseColorShader(matProj2D.m, vertices, true, color);
 
 	glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
 
@@ -824,7 +821,7 @@ void Block (int x, int y, int color)
 		x0,	y1, 0,
 	};
 
-	UseColorShader(matProj2D.m, vertices, color);
+	UseColorShader(matProj2D.m, vertices, false, color);
 
 	glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
 }
@@ -846,7 +843,7 @@ void DrawLine (int xl, int xh, int y,int color)
 		x0,	y1, 0,
 	};
 
-	UseColorShader(matProj2D.m, vertices, color);
+	UseColorShader(matProj2D.m, vertices, false, color);
 
 	glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
 }
@@ -867,7 +864,7 @@ void Bar (int x, int y, int wide, int height, int color)
 		x0,	y1, 0,
 	};
 
-	UseColorShader(matProj2D.m, vertices, color);
+	UseColorShader(matProj2D.m, vertices, false, color);
 
 	glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
 }
@@ -888,7 +885,7 @@ void DrawRect (int x, int y, int width, int height, int color)
 		x0,	y1, 0,
 	};
 
-	UseColorShader(matProj2D.m, vertices, color);
+	UseColorShader(matProj2D.m, vertices, false, color);
 
 	glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
 }
@@ -915,7 +912,7 @@ void DrawLineZ (int xl, int xh, int y, int zl, int zh,int color)
 		x0,	y1, z0,
 	};
 
-	UseColorShader(matProj2D.m, vertices, color);
+	UseColorShader(matProj2D.m, vertices, false, color);
 
 	glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
 
@@ -962,7 +959,7 @@ void DrawPlaneZ(float width, float length, float y, int color)
 		0, y, length,
 	};
 
-	UseColorShader(matProj.m, vertices, color);
+	UseColorShader(matProj.m, vertices, false, color);
 
 	glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
 }
@@ -978,7 +975,7 @@ void DrawWallZ(float x0, float z0, float x1, float z1, int color)
 		x0,-0.5, z0,
 	};
 
-	UseColorShader(matProj.m, vertices, color);
+	UseColorShader(matProj.m, vertices, false, color);
 
 	glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
 }

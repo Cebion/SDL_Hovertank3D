@@ -201,15 +201,29 @@ void CreateColorShader()
 	colorShader.color = glGetUniformLocation(colorShader.shader.program, "color");
 }
 
-void UseColorShader(float * matrix, float * vertices, uint8_t color)
+void UseColorShader(float * matrix, float * vertices, int xor, uint8_t color)
 {
 	UseCommonShader(&colorShader.shader, matrix, vertices);
 
 	uint8_t u8[4];
 	*(uint32_t*)u8 = GetColor(color);
+	if (xor)
+	{
+		u8[0] = (u8[0] > 127)? 255 : 0;
+		u8[1] = (u8[1] > 127)? 255 : 0;
+		u8[2] = (u8[2] > 127)? 255 : 0;
+	}
 	glUniform4f(colorShader.color, u8[0]/255.f, u8[1]/255.f, u8[2]/255.f, u8[3]/255.f);
 
-	glDisable(GL_BLEND);
+	if (xor)
+	{
+		glEnable(GL_BLEND);
+		glBlendFunc(GL_ONE_MINUS_DST_COLOR, GL_ONE_MINUS_SRC_COLOR);
+	}
+	else
+	{
+		glDisable(GL_BLEND);
+	}
 }
 
 
