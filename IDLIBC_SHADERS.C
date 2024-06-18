@@ -175,7 +175,8 @@ struct {
 void CreateColorShader()
 {
 	const GLchar vertexShaderSource[] = {
-		"#version 150\n"
+		"#version 320 es\n"
+		"precision mediump float;\n"
 		"uniform mat4 matrix;\n"
 		"in vec3 position;\n"
 		"void main()\n"
@@ -184,8 +185,11 @@ void CreateColorShader()
 		"}"
 	};
 
+
+
 	const GLchar fragmentShaderSource[] = {
-		"#version 150\n"
+		"#version 320 es\n"
+		"precision mediump float;\n"
 		"uniform vec4 color;\n"
 		"out vec4 outputColor;\n"
 		"void main()\n"
@@ -201,13 +205,13 @@ void CreateColorShader()
 	colorShader.color = glGetUniformLocation(colorShader.shader.program, "color");
 }
 
-void UseColorShader(float * matrix, float * vertices, int xor, uint8_t color)
+void UseColorShader(float *matrix, float *vertices, int use_xor, uint8_t color)
 {
 	UseCommonShader(&colorShader.shader, matrix, vertices);
 
 	uint8_t u8[4];
 	*(uint32_t*)u8 = GetColor(color);
-	if (xor)
+	if (use_xor)
 	{
 		u8[0] = (u8[0] > 127)? 255 : 0;
 		u8[1] = (u8[1] > 127)? 255 : 0;
@@ -215,7 +219,7 @@ void UseColorShader(float * matrix, float * vertices, int xor, uint8_t color)
 	}
 	glUniform4f(colorShader.color, u8[0]/255.f, u8[1]/255.f, u8[2]/255.f, u8[3]/255.f);
 
-	if (xor)
+	if (use_xor)
 	{
 		glEnable(GL_BLEND);
 		glBlendFunc(GL_ONE_MINUS_DST_COLOR, GL_ONE_MINUS_SRC_COLOR);
@@ -238,7 +242,8 @@ struct {
 void CreateTextureShader()
 {
 	const GLchar vertexShaderSource[] = {
-		"#version 150\n"
+		"#version 320 es\n"
+		"precision mediump float;\n"
 		"uniform mat4 matrix;\n"
 		"in vec3 position;\n"
 		"in vec2 texcoord;\n"
@@ -251,7 +256,8 @@ void CreateTextureShader()
 	};
 
 	const GLchar fragmentShaderSource[] = {
-		"#version 150\n"
+		"#version 320 es\n"
+		"precision mediump float;\n"
 		"uniform sampler2D texUnit;\n"
 		"in vec2 uv;\n"
 		"out vec4 outputColor;\n"
@@ -305,7 +311,8 @@ struct {
 void CreateFontShader()
 {
 	const GLchar vertexShaderSource[] = {
-		"#version 150\n"
+		"#version 320 es\n"
+		"precision mediump float;\n"
 		"uniform mat4 matrix;\n"
 		"in vec3 position;\n"
 		"in vec2 texcoord;\n"
@@ -320,7 +327,8 @@ void CreateFontShader()
 	};
 
 	const GLchar fragmentShaderSource[] = {
-		"#version 150\n"
+		"#version 320 es\n"
+		"precision mediump float;\n"
 		"uniform vec4 color;\n"
 		"uniform sampler2D texUnit;\n"
 //		"uniform sampler2D texUnit2;\n" // test
@@ -391,7 +399,8 @@ void CreateFadeShader()
 	GLint logLength;
 
 	const GLchar *vertexShaderSource[] = {
-		"#version 150\n"
+		"#version 320 es\n"
+		"precision mediump float;\n"
 		"in vec2 texcoord;\n"
 		"in vec2 position;\n"
 		"out vec2 uv;\n"
@@ -403,7 +412,8 @@ void CreateFadeShader()
 	};
 
 	const GLchar *fragmentShaderSource[] = {
-		"#version 150\n"
+		"#version 320 es\n"
+		"precision mediump float;\n"
 		"uniform float fade;\n"
 		"uniform sampler2D texUnit;\n"
 		"in vec2 uv;\n"
@@ -411,8 +421,8 @@ void CreateFadeShader()
 		"void main()\n"
 		"{\n"
 		"    vec4 color = texture(texUnit, uv);\n"
-		"    vec4 darken = color * min(fade,1.0);\n"
-		"    vec4 brighten = (darken - vec4(1.0,1.0,1.0,1.0)) * (2 - max(fade,1.0)) + vec4(1.0,1.0,1.0,1.0);\n"
+		"    vec4 darken = color * min(fade, 1.0);\n"
+		"    vec4 brighten = (darken - vec4(1.0, 1.0, 1.0, 1.0)) * (2.0 - max(fade, 1.0)) + vec4(1.0, 1.0, 1.0, 1.0);\n"
 		"    outputColor = brighten;\n"
 		"}"
 	};
